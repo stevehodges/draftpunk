@@ -9,9 +9,17 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Steve Hodges"]
   spec.email         = ["sjhodges@gmail.com"]
 
-  spec.summary       = %q{TODO: Write a short summary, because Rubygems requires one.}
-  spec.description   = %q{TODO: Write a longer description or delete this line.}
-  spec.homepage      = "TODO: Put your gem's website or public repo URL here."
+  spec.summary       = %q{Easy editing of a draft version of an ActiveRecord model and its associations, and publishing said draft's changes back to the original models.}
+  spec.description   = <<-EOF
+DraftPunk allows editing of a draft version of an ActiveRecord model and its associations.
+
+When it's time to edit, a draft version is created in the same table as the object. You can specify which associations should also be edited and stored with that draft version. All associations are stored in their native table.
+
+When it's time to publish, any attributes changed on your draft object persist to the original object. All associated objects behave the same way. Any associated have_many objects which are deleted on the draft are deleted on the original object.
+
+This gem doesn't rely on a versioning gem and doesn't store incremental diffs of the model. It simply works with your existing database (plus one new column on your original object).
+EOF
+  spec.homepage      = "https://github.com/stevehodges/draftpunk"
   spec.license       = "MIT"
 
   spec.required_ruby_version  = ">= 2.0.0"
@@ -27,8 +35,7 @@ Gem::Specification.new do |spec|
 
   spec.add_runtime_dependency     "amoeba",    ">= 3.0.0"
   spec.add_runtime_dependency     "unscoped_associations"
-  spec.add_runtime_dependency     'activerecord', "~> 3"
-  # spec.add_runtime_dependency     'rails', "~> 3"
+  spec.add_runtime_dependency     'activerecord', "~> 3.2"
 
   spec.add_development_dependency "bundler",   "~> 1.9"
   spec.add_development_dependency "rake",      "~> 10.0"

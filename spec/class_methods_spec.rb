@@ -21,6 +21,9 @@ describe DraftPunk::Model::ActiveRecordClassMethods do
       it "raises a Configuration Error if a specified association doesn't exist" do
         expect { House.requires_approval(associations: [:widgets])}.to raise_error(DraftPunk::ConfigurationError)
       end
+      it "works if nullify argument is empty" do
+        expect { House.requires_approval associations: House::APPROVABLE_ASSOCIATIONS}.to_not raise_error
+      end
     end
 
     context :accepts_nested_drafts_for do
