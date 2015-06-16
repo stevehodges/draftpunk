@@ -21,6 +21,8 @@ This gem doesn't rely on a versioning gem and doesn't store incremental diffs of
 EOF
   spec.homepage      = "https://github.com/stevehodges/draftpunk"
   spec.license       = "MIT"
+  spec.has_rdoc      = 'yard'
+
 
   spec.required_ruby_version  = ">= 2.0.0"
 
@@ -41,5 +43,6 @@ EOF
   spec.add_development_dependency "rake",      "~> 10.0"
   spec.add_development_dependency "rspec",     "~> 2.0"
   spec.add_development_dependency "sqlite3"
+  spec.add_development_dependency "yard"
 
 end

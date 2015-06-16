@@ -3,25 +3,41 @@ require 'activerecord_instance_methods'
 module DraftPunk
   module Model
     module ActiveRecordClassMethods
-      # Call this method in your model to setup approval.
+      # Call this method in your model to setup approval. It will recursively apply to its associations,
+      # thus does not need to be explicity called on its associated models (and will error if you try).
       #
-      # Optionally pass in ALL associations which the user will edit via accepts_nested_attributes.
-      # All changes to the draft, including associations, get set on the draft object.
-      #
-      # e.g. When editing your model (business), users updating the address, images
-      #      and employees via accepts_nested_attributes. However, only the images
-      #      require approval.
+      # This model must have an approved_version_id column (Integer), which will be used to track its draft
       # 
-      #      Thus, you will use this in your model:
-      #      requires_approval(associations: ['images', 'address', 'employees'])
+      # For instance, your Business model:
+      #  class Business << ActiveRecord::Base
+      #    has_many :employees
+      #    has_many :images
+      #    has_one  :address
+      #    has_many :vending_machines
       #
-      #      If you omit address and employees, the save in your controller will fail, 
-      #      since the draft object won't have an address or employees to update.
+      #    requires_approval # When creating a business's draft, :employees, :vending_machines, :images, and :address will all have drafts created
+      #  end
+      #
+      # Optionally pass in only associations which the user will edit - associations which should have a draft created.
+      # If you only want the :address association to have a draft created, call this, instead, in your model.
+      #  
+      #  requires_approval associations: [:address]
+      #
+      # WARNING: If you are setting associations via accepts_nested_attributes all changes to the draft, including associations, get set on the
+      # draft object (as expected). If your form includes associated objects which weren't defined in requires_approval, your save will fail since
+      # the draft object doesn't HAVE those associations to update! In this case, you should probably add that association to the
+      # +associations+ param here.
       #
       # If you want your draft associations to track their live version, add an :approved_version_id column
       # to each association's table. You'll be able to access that associated object's live version, just
       # like you can with the original model which called requires_approval. 
       #
+      # @param associations [Array] Pass in ALL associations which the user will need to edit. If not supplied, all 
+      #    :has_many, :has_one, and :has_and_belongs_to_many associations for this model, and its children, will be used.
+      # @param nullify [Array] A list of attributes on this model to set to null on the draft when it is created. For
+      #    instance, the _id_ and _created_at_ columns are nullified by default, since you don't want Rails to try to
+      #    persist those on the draft.
+      # @return nil
       def requires_approval(associations: [], nullify: [])
         send :include, ActiveRecordInstanceMethods
         send :include, InstanceInterrogators
@@ -54,6 +70,31 @@ module DraftPunk
         end
       end
 
+      # Call this on any associations of your primary associated object to control which of _this_ model's associations
+      # to create drafts for.
+      #
+      # For instance, your Business has a has_many association to Employee
+      #
+      #  class Business << ActiveRecord::Base
+      #    has_many :employees
+      #    has_many :images
+      #    has_one  :address
+      #    has_many :vending_machines
+      #
+      #    requires_approval # When creating a business's draft, :employees, :vending_machines, :images, and :address will all have drafts created
+      #  end
+      # And you want people to be able to edit a draft of their home address. But they WON'T be editing their
+      # confidential_browsing_activities. So, let's exclude that from the drafts.
+      #  class Employee << ActiveRecord::Base
+      #    belongs_to :business
+      #    has_one  :home_address
+      #    has_many :confidential_browsing_activities
+      #
+      #    accepts_nested_drafts_for :home_address
+      #  end
+      # 
+      # @param associations [Array] Pass in all associations which a draft will be created for.
+      # @return nil
       def accepts_nested_drafts_for(associations=nil)
         raise DraftPunk::ConfigurationError, "#{name} accepts_nested_drafts_for must include names of associations to create drafts for" unless associations
       	raise DraftPunk::ConfigurationError, "Cannot call accepts_nested_drafts_for multiple times for #{name}" if const_defined? :DRAFT_EDITABLE_ASSOCIATIONS
@@ -68,7 +109,9 @@ module DraftPunk
         end
       end
 
-      # This will generally be only used in testing scenarios
+      # This will generally be only used in testing scenarios, in cases when requires_approval need to be
+      # called multiple times. Only the usage for that use case is supported. Use at your own risk for other
+      # use cases.
       def disable_approval!
       	return unless const_defined? :DRAFT_EDITABLE_ASSOCIATIONS
     		send(:remove_const, :DRAFT_EDITABLE_ASSOCIATIONS)

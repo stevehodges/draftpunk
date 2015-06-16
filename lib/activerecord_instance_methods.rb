@@ -6,23 +6,49 @@ module DraftPunk
       # You can overwrite these methods in your model for custom behavior
       #############################
 
-      # Overwrite in your model if you want different logic for whether to require approval for changes
+      # Determines whether to edit a draft, or the original object. This only controls
+      # the object returned by editable version, and draft publishing. If changes to not
+      # require approval, publishing of the draft is short circuited and will do nothing.
+      #
+      # Overwrite in your model to implement logic for whether to use a draft.
+      #
+      # @return [Boolean]
       def changes_require_approval?
-        true # all changes require approval
+        true # By default, all changes require approval
       end
 
-      # Overwrite in model if you don't want all attributes of the draft to be saved on the live object
-      # This is an array of attributes (including has_one association id columns) which
-      # will be saved on the object when its' draft is approved.
-      # For instance, don't include "created_at" if you don't want to modify this object's created_at!
-      # eg ["name", "city", "state_id"]
+      # Which attributes of this model are published from the draft to the approved object. Overwrite in model
+      # if you don't want all attributes of the draft to be saved on the live object.
+      #
+      # This is an array of attributes (including has_one association id columns) which will be saved 
+      # on the object when its' draft is approved.
+      #
+      # For instance, if you want to omit updated_at, for whatever reason, you would define this in your model:
+      #
+      #  def approvable_attributes
+      #    self.attributes.keys - ["created_at", "updated_at"]
+      #  end
+      #
+      # WARNING: Don't include "created_at" if you don't want to modify this object's created_at!
+      #
+      # @return [Array] names of approvable attributes
       def approvable_attributes
-        self.attributes.keys - ["created_at", "id"]
+        self.attributes.keys - ["created_at"]
       end
       #############################
       # END CONFIGURABLE METHODS
       #############################
 
+
+      # Updates the approved version with any changes on the draft, and all the drafts' associated objects.
+      # 
+      # If the approved version changes_require_approval? returns false, this method exits early and does nothing
+      # to the approved version.
+      #
+      # THE DRAFT VERSION IS DESTROYED IN THIS PROCESS. To generate a new draft, simply call <tt>editable_version</tt>
+      # again on the approved object.
+      # 
+      # @return [ActiveRecord Object] updated version of the approved object
       def publish_draft!
         @live_version  = get_approved_version
         @draft_version = editable_version
@@ -32,17 +58,22 @@ module DraftPunk
           save_attribute_changes_and_has_one_assocations_from_draft
           update_has_many_associations_from_draft
           @live_version.draft.destroy # We have to do this since we moved all the draft's has_many associations to @live_version. If you call "editable_version" later, it'll build the draft.
-          #raise "Hell no don't do this yet"
         end
         @live_version.reload
       end
 
-      # Get the object's draft; this method creates one if it doesn't exist yet
+      # Get the object's draft if changes require approval; this method creates one if it doesn't exist yet
+      # If changes do not require approval, the original approved object is returned
+      #
+      # @return ActiveRecord Object
       def editable_version
+        return get_approved_version unless changes_require_approval?
         is_draft? ? self : get_draft
       end
 
-      # Get the approved version. Intended for use on a draft, but works on a live/approved object too
+      # Get the approved version. Intended for use on a draft object, but works on a live/approved object too
+      #
+      # @return (ActiveRecord Object)
       def get_approved_version
         approved_version || self
       end
@@ -91,7 +122,7 @@ module DraftPunk
       end
 
       def usable_approvable_attributes
-      	approvable_attributes.map(&:to_s) - ['approved_version_id']
+      	approvable_attributes.map(&:to_s) - ['approved_version_id', 'id']
       end
 
       def association_is_has_many(name)
@@ -106,11 +137,13 @@ module DraftPunk
     end
 
     module InstanceInterrogators
+      # @return [Boolean] whether the current ActiveRecord object is a draft
       def is_draft?
         raise DraftPunk::ApprovedVersionIdError unless respond_to?("approved_version_id")
         approved_version_id.present?
       end
 
+      # @return [Boolean] whether the current ActiveRecord object has a draft version
       def has_draft?
         raise DraftPunk::ApprovedVersionIdError unless respond_to?(:approved_version_id)
         draft.present?
