@@ -14,6 +14,8 @@ Gem::Specification.new do |spec|
   spec.homepage      = "TODO: Put your gem's website or public repo URL here."
   spec.license       = "MIT"
 
+  spec.required_ruby_version  = ">= 2.0.0"
+
   spec.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
   spec.bindir        = "exe"
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
@@ -23,6 +25,14 @@ Gem::Specification.new do |spec|
     spec.metadata['allowed_push_host'] = "TODO: Set to 'http://mygemserver.com' to prevent pushes to rubygems.org, or delete to allow pushes to any server."
   end
 
-  spec.add_development_dependency "bundler", "~> 1.9"
-  spec.add_development_dependency "rake", "~> 10.0"
+  spec.add_runtime_dependency     "amoeba",    ">= 3.0.0"
+  spec.add_runtime_dependency     "unscoped_associations"
+  spec.add_runtime_dependency     'activerecord', "~> 3"
+  # spec.add_runtime_dependency     'rails', "~> 3"
+
+  spec.add_development_dependency "bundler",   "~> 1.9"
+  spec.add_development_dependency "rake",      "~> 10.0"
+  spec.add_development_dependency "rspec",     "~> 2.0"
+  spec.add_development_dependency "sqlite3"
+
 end
