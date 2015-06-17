@@ -38,7 +38,8 @@ module DraftPunk
       #    instance, the _id_ and _created_at_ columns are nullified by default, since you don't want Rails to try to
       #    persist those on the draft.
       # @return nil
-      def requires_approval(associations: [], nullify: [])
+      def requires_approval(associations: [], nullify: [], set_default_scope: false)
+        return unless ActiveRecord::Base.connection.table_exists?(table_name) # Short circuits if you're migrating
         send :include, ActiveRecordInstanceMethods
         send :include, InstanceInterrogators
                                          
@@ -53,7 +54,7 @@ module DraftPunk
           nullify nullify
           # Note that the amoeba customize option is being set in setup_associations_and_scopes_for
         end
-        setup_associations_and_scopes_for self
+        setup_associations_and_scopes_for self, set_default_scope
         setup_draft_association_persistance_for self, associations
 
         associations.each do |assoc|
@@ -96,6 +97,7 @@ module DraftPunk
       # @param associations [Array] Pass in all associations which a draft will be created for.
       # @return nil
       def accepts_nested_drafts_for(associations=nil)
+        return unless ActiveRecord::Base.connection.table_exists?(table_name)
         raise DraftPunk::ConfigurationError, "#{name} accepts_nested_drafts_for must include names of associations to create drafts for" unless associations
       	raise DraftPunk::ConfigurationError, "Cannot call accepts_nested_drafts_for multiple times for #{name}" if const_defined? :DRAFT_EDITABLE_ASSOCIATIONS
 
@@ -140,12 +142,17 @@ module DraftPunk
         end
       end
 
-      def setup_associations_and_scopes_for(target_class)
+      def setup_associations_and_scopes_for(target_class, set_default_scope=false)
         return if target_class.reflect_on_association(:approved_version) || !target_class.column_names.include?('approved_version_id')
         target_class.belongs_to :approved_version, class_name: target_class.name
         target_class.has_one    :draft, class_name: target_class.name, foreign_key: :approved_version_id, unscoped: true
         target_class.scope      :approved, -> { where("#{target_class.quoted_table_name}.approved_version_id IS NULL") }
-        target_class.scope      :draft,    -> { unscoped.where("#{target_class.quoted_table_name}.approved_version_id IS NOT NULL") }
+        if set_default_scope
+          target_class.default_scope target_class.approved
+        else
+          # TODO: fix - the unscoped isn't working with default scope, so not defining this draft scope if set_default_scope
+          target_class.scope      :draft,    -> { unscoped.where("#{target_class.quoted_table_name}.approved_version_id IS NOT NULL") }
+        end
         target_class.send       :include, InstanceInterrogators
       end
 
