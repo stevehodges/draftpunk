@@ -67,12 +67,12 @@ So you have an ActiveRecord object:
 
 And you want it's editable version - its draft:
 
-    @my_draft = @business.get_editable_version   #If @business doesn't have a draft yet, it creates one for you. 
+    @my_draft = @business.editable_version   #If @business doesn't have a draft yet, it creates one for you. 
 
 Now you can edit the draft. Perhaps in your controller, you have:
 
     def edit
-      @my_draft = @business.get_editable_version
+      @my_draft = @business.editable_version
       render 'form'
     end
 
@@ -98,7 +98,7 @@ Say your `@business` has a `name` attribute:
 
 Ok, you just incorperated so your name changed.
 
-    @my_draft = @business.get_editable_version
+    @my_draft = @business.editable_version
     @my_draft.name = "DraftPunk Incorperated"
     @my_draft.save
 
@@ -118,7 +118,7 @@ So you want to make your changes live:
 
 **All of the @business associations copied from the draft**. More correctly, the foreign_keys on has_many associations are changed, set to the original object (@business) id. All the old associations (specified in requires_approval) on @business are destroyed.
 
-At this point, the draft is destroyed. Next time you call `get_editable_version`, a draft will be created for you.
+At this point, the draft is destroyed. Next time you call `editable_version`, a draft will be created for you.
 
 ### Tracking drafts
 Your original model has a few methods available:

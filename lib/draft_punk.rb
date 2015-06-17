@@ -29,6 +29,15 @@ module DraftPunk
     end
   end
 
+  class DraftCreationError < ActiveRecord::RecordInvalid
+    def initialize(message)
+      @message = message
+    end
+    def to_s
+      "the draft failed to be created due to validation error(s): #{@message}"
+    end
+  end
+
 end
 
 ActiveSupport.on_load(:active_record) do

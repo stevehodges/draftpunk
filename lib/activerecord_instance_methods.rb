@@ -59,7 +59,7 @@ module DraftPunk
           update_has_many_associations_from_draft
           @live_version.draft.destroy # We have to do this since we moved all the draft's has_many associations to @live_version. If you call "editable_version" later, it'll build the draft.
         end
-        @live_version.reload
+        @live_version = self.class.find(@live_version.id)
       end
 
       # Get the object's draft if changes require approval; this method creates one if it doesn't exist yet
@@ -93,8 +93,13 @@ module DraftPunk
       def create_draft_version
         # Don't call this directly. Use editable_version instead.
         return draft if draft.present?
-        self.draft = amoeba_dup
-        self.draft.save(validate: false)
+        dupe = amoeba_dup
+        begin
+          self.draft = dupe
+          self.draft.save!(validate: false)
+        rescue => e
+          raise DraftCreationError, dupe.errors.full_messages.to_sentence
+        end
         draft
       end
 
@@ -116,6 +121,7 @@ module DraftPunk
           attribute_updates = {}
           attribute_updates[reflection.foreign_key] = @live_version.id
           attribute_updates['updated_at']           = Time.now if reflection.klass.column_names.include?('updated_at')
+          attribute_updates['approved_version_id']  = nil
 
           @draft_version.send(assoc).update_all attribute_updates
         end
