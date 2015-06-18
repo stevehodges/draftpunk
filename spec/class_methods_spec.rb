@@ -1,7 +1,5 @@
 require 'spec_helper'
 
-MODELS_WITH_APPROVED_VERSION_ID = [House, Room, Closet, FlooringStyle]
-
 describe DraftPunk::Model::ActiveRecordClassMethods do
 
   context :valid_arguments do
@@ -9,6 +7,15 @@ describe DraftPunk::Model::ActiveRecordClassMethods do
     context :requires_approval do
       after(:each) do
         House.disable_approval!
+        Room.disable_approval!
+        Permit.disable_approval!
+        Closet.disable_approval!
+        TrimStyle.disable_approval!
+      end
+      it "works if the class has no associations" do
+        Apartment.requires_approval
+        apartment = Apartment.create(name: '450 5th Avenue')
+        apartment.editable_version.is_draft?.should be_truthy
       end
       it 'sets editable associations for all in the associations argument' do
         House.requires_approval associations: House::APPROVABLE_ASSOCIATIONS
@@ -56,7 +63,7 @@ describe DraftPunk::Model::ActiveRecordClassMethods do
         h.permits.count.should be(1)
       end
       it 'should have an approved_version_id for the right models' do
-        MODELS_WITH_APPROVED_VERSION_ID.each do |model|
+        [House, Room, Closet, FlooringStyle].each do |model|
           model.column_names.should include('approved_version_id')
         end
       end
@@ -93,9 +100,12 @@ describe DraftPunk::Model::ActiveRecordClassMethods do
       context :accepts_nested_drafts_for do
         it 'creates draft copies of all associations specified in the associations argument' do
           draft_room = @draft.rooms.where(name: 'Living Room').first
-          draft_room.electrical_outlets.count.should be(0)
           draft_room.closets.count.should be(2)
           draft_room.trim_styles.count.should be(1)
+        end
+        it "doesn't draft copies of all associations not specified in the associations argument" do
+          draft_room = @draft.rooms.where(name: 'Living Room').first
+          draft_room.electrical_outlets.count.should be(0)
         end
       end
     end

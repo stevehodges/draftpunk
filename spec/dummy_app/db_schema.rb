@@ -38,4 +38,8 @@ ActiveRecord::Schema.define(:version => 20150615203843) do
     t.integer :room_id
     t.string  :style,     default: 'baseboard'
   end
+  create_table :apartments, force: true do |t|
+    t.string :name
+    t.integer :approved_version_id
+  end
 end

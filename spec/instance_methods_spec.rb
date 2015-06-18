@@ -19,6 +19,14 @@ describe DraftPunk::Model::ActiveRecordInstanceMethods do
     it 'returns the draft version of an object if it exists' do
     	@house.editable_version.should == @draft
     	@draft.editable_version.should == @draft
+
+      @live_room.editable_version.should == @draft_room
+      @draft_room.editable_version.should == @draft_room
+
+      closet = @live_room.closets.first
+      closet_draft = closet.editable_version
+      closet_draft.should be_present
+      closet_draft.editable_version.should == closet_draft
     end
     it "builds and returns draft version of an object if it doesn't yet exist" do
     	original_count = House.count

@@ -38,7 +38,5 @@ class TrimStyle < ActiveRecord::Base
   attr_accessor :style
 end
 
-# DUE TO THE WAY CLASSES ARE INSTANTIATED IN THIS TEST (WITHOUT FULL RAILS LOADING),
-# THESE METHODS CANNOT BE CALLED FROM WITHIN THE CLASS DEFINITIONS, ABOVE.
-# House.requires_approval associations: House::APPROVABLE_ASSOCIATIONS, nullify: House::NULLIFY_ATTRIBUTES
-# Room.accepts_nested_drafts_for Room::APPROVABLE_ASSOCIATIONS
+class Apartment < ActiveRecord::Base
+end

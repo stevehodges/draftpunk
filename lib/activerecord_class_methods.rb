@@ -40,35 +40,21 @@ module DraftPunk
       # @return nil
       def requires_approval(associations: [], nullify: [], set_default_scope: false)
         return unless ActiveRecord::Base.connection.table_exists?(table_name) # Short circuits if you're migrating
-        send :include, ActiveRecordInstanceMethods
-        send :include, InstanceInterrogators
-                                         
-        associations = reflect_on_all_associations.select{|r| is_relevant_association_type?(r) && !r.name.in?(%i(draft approved_version)) }.map{|r| r.name.downcase } if associations.empty?
+
+        associations = default_draft_target_associations if associations.empty?
         associations = associations.map(&:to_sym)
 
-      	raise DraftPunk::ConfigurationError, "Cannot call requires_approval multiple times for #{name}" if const_defined? :DRAFT_EDITABLE_ASSOCIATIONS
+        raise DraftPunk::ConfigurationError, "Cannot call requires_approval multiple times for #{name}" if const_defined? :DRAFT_EDITABLE_ASSOCIATIONS
         self.const_set :DRAFT_EDITABLE_ASSOCIATIONS, associations
 
         amoeba do
-          include_association associations
+          # include_association associations
           nullify nullify
           # Note that the amoeba customize option is being set in setup_associations_and_scopes_for
         end
-        setup_associations_and_scopes_for self, set_default_scope
-        setup_draft_association_persistance_for self, associations
-
-        associations.each do |assoc|
-          reflection = reflect_on_association(assoc)
-          raise DraftPunk::ConfigurationError, "#{name} requires_approval includes invalid association (#{assoc})" unless reflection
-          target_class = reflection.class_name.constantize
-          target_class.amoeba do
-            exclude_association :approved_version
-            exclude_association :draft
-            # Note that the amoeba customize option is being set in setup_associations_and_scopes_for
-          end
-          setup_draft_association_persistance_for target_class
-          setup_associations_and_scopes_for target_class
-        end
+        setup_amoeba_for self, set_default_scope: set_default_scope, associations: associations
+        # setup_associations_and_scopes_for self, set_default_scope
+        # setup_draft_association_persistance_for_children_of self, associations
       end
 
       # Call this on any associations of your primary associated object to control which of _this_ model's associations
@@ -99,7 +85,7 @@ module DraftPunk
       def accepts_nested_drafts_for(associations=nil)
         return unless ActiveRecord::Base.connection.table_exists?(table_name)
         raise DraftPunk::ConfigurationError, "#{name} accepts_nested_drafts_for must include names of associations to create drafts for" unless associations
-      	raise DraftPunk::ConfigurationError, "Cannot call accepts_nested_drafts_for multiple times for #{name}" if const_defined? :DRAFT_EDITABLE_ASSOCIATIONS
+        raise DraftPunk::ConfigurationError, "Cannot call accepts_nested_drafts_for multiple times for #{name}" if const_defined? :DRAFT_EDITABLE_ASSOCIATIONS
 
         associations = [associations].flatten
         associations.each do |assoc|
@@ -115,35 +101,50 @@ module DraftPunk
       # called multiple times. Only the usage for that use case is supported. Use at your own risk for other
       # use cases.
       def disable_approval!
-      	return unless const_defined? :DRAFT_EDITABLE_ASSOCIATIONS
-    		send(:remove_const, :DRAFT_EDITABLE_ASSOCIATIONS)
-    		@config_block = nil # @config_block is used/set by amoeba gem
+        send(:remove_const, :DRAFT_EDITABLE_ASSOCIATIONS) if const_defined? :DRAFT_EDITABLE_ASSOCIATIONS
+        fresh_amoeba do 
+          propagate :submissive
+          disable
+        end
+        # @config_block = nil # @config_block is used/set by amoeba gem
       end
 
-      private ####################################################################
+    protected #################################################################
 
-      def setup_draft_association_persistance_for(target_class, associations=nil)
-        target_reflections = if associations
-          associations.map do |assoc|
-            reflection = target_class.reflect_on_association(assoc)
-            raise DraftPunk::ConfigurationError, "#{name} includes invalid association (#{assoc})" unless reflection
-            reflection
-          end
-        else
-          target_class.reflect_on_all_associations
+      def default_draft_target_associations
+        reflect_on_all_associations.select{|r| is_relevant_association_type?(r) && !r.name.in?(%i(draft approved_version)) }.map{|r| r.name.downcase.to_sym }
+      end
+
+    private ###################################################################
+
+      def setup_amoeba_for(target_class, set_default_scope: false, associations: nil)
+        associations ||= target_class.default_draft_target_associations
+        target_class.amoeba do
+          enable
+          include_association associations
+          customize(lambda {|live_obj, draft_obj|
+            draft_obj.approved_version_id = live_obj.id if draft_obj.respond_to?(:approved_version_id)
+          })
+        end
+        setup_associations_and_scopes_for target_class, set_default_scope: set_default_scope
+        setup_draft_association_persistance_for_children_of target_class, associations
+      end
+
+      def setup_draft_association_persistance_for_children_of(target_class, associations=nil)
+        associations = target_class.default_draft_target_associations unless associations
+        target_reflections = associations.map do |assoc|
+          reflection = target_class.reflect_on_association(assoc.to_sym)
+          reflection.presence || (raise DraftPunk::ConfigurationError, "#{name} includes invalid association (#{assoc})")
         end
         target_reflections.select{|r| is_relevant_association_type?(r) }.each do |assoc|
-          assoc.klass.send :include, InstanceInterrogators
-          assoc.klass.amoeba do
-            customize(lambda {|live_obj, draft_obj|
-              draft_obj.approved_version_id = live_obj.id if draft_obj.respond_to?(:approved_version_id)
-            })
-          end
+          setup_amoeba_for assoc.klass
         end
       end
 
-      def setup_associations_and_scopes_for(target_class, set_default_scope=false)
+      def setup_associations_and_scopes_for(target_class, set_default_scope: false)
+        target_class.send :include, InstanceInterrogators unless target_class.method_defined?(:has_draft?)
         return if target_class.reflect_on_association(:approved_version) || !target_class.column_names.include?('approved_version_id')
+        target_class.send :include, ActiveRecordInstanceMethods
         target_class.belongs_to :approved_version, class_name: target_class.name
         target_class.has_one    :draft, class_name: target_class.name, foreign_key: :approved_version_id, unscoped: true
         target_class.scope      :approved, -> { where("#{target_class.quoted_table_name}.approved_version_id IS NULL") }
@@ -153,13 +154,13 @@ module DraftPunk
           # TODO: fix - the unscoped isn't working with default scope, so not defining this draft scope if set_default_scope
           target_class.scope      :draft,    -> { unscoped.where("#{target_class.quoted_table_name}.approved_version_id IS NOT NULL") }
         end
-        target_class.send       :include, InstanceInterrogators
       end
 
       def is_relevant_association_type?(activerecord_reflection)
         # Note when implementing for Rails 4, macro is renamed to something else
         activerecord_reflection.macro.in? Amoeba::Config::DEFAULTS[:known_macros]
       end
+
     end
   end
 end
