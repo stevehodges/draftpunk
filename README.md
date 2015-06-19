@@ -49,9 +49,13 @@ DraftPunk will generate drafts for all associations, by default. So when you cre
 
 Optionally, you can tell DraftPunk which associations the user will edit - the associations which should have a draft created.
 
-If you only want the :address association to have a draft created, add it after `requires_approval` in your model:
+If you only want the :address association to have a draft created, add a CREATES_NESTED_DRAFTS_FOR constant in your model:
 
-     requires_approval associations: [:address]
+    CREATES_NESTED_DRAFTS_FOR = [:address] # When creating a business's draft, only :address will have drafts created
+
+To disable drafts for all assocations for this model, simply pass an empty array:
+
+    CREATES_NESTED_DRAFTS_FOR = [] # When creating a business's draft, no associations will have drafts created
 
 **WARNING: If you are setting associations via accepts_nested_attributes** _all changes to the draft, including associations, get set on the
 draft object (as expected). If your form includes associated objects which weren't defined in requires_approval, your save will fail since

@@ -9,13 +9,13 @@ ActiveRecord::Schema.define(:version => 20150615203843) do
     t.string   :permit_type
     t.integer  :house_id
   end
-  create_table :flooring_styles, force: true do |t|
+  create_table :custom_flooring_styles, force: true do |t|
     t.string  :name
     t.integer :approved_version_id
+    t.integer :room_id
   end
   create_table :rooms, force: true do |t|
     t.integer :house_id
-    t.integer :flooring_style_id
     t.string  :name,     default: 'Living Room'
 
     t.integer :width,    default: 12

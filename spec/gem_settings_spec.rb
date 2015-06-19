@@ -16,7 +16,7 @@ describe 'GemSetup' do
       Room.new.should  respond_to(:house)
       Room.new.should  respond_to(:closets)
       Room.new.should  respond_to(:electrical_outlets)
-      Room.new.should  respond_to(:flooring_style)
+      Room.new.should  respond_to(:custom_flooring_style)
     end
   end
 end

@@ -6,46 +6,28 @@ describe DraftPunk::Model::ActiveRecordClassMethods do
 
     context :requires_approval do
       after(:each) do
-        House.disable_approval!
-        Room.disable_approval!
-        Permit.disable_approval!
-        Closet.disable_approval!
-        TrimStyle.disable_approval!
+        disable_all_approvals
       end
       it "works if the class has no associations" do
         Apartment.requires_approval
         apartment = Apartment.create(name: '450 5th Avenue')
         apartment.editable_version.is_draft?.should be_truthy
       end
-      it 'sets editable associations for all in the associations argument' do
-        House.requires_approval associations: House::APPROVABLE_ASSOCIATIONS
-        House::DRAFT_EDITABLE_ASSOCIATIONS.sort.should == House::APPROVABLE_ASSOCIATIONS.sort
+      it 'sets editable associations for all in the CREATES_NESTED_DRAFTS_FOR constant' do
+        House.requires_approval
+        House.draft_target_associations.sort.should == House::CREATES_NESTED_DRAFTS_FOR.sort
       end
       it 'sets all associations as editable if no associations explicity provided' do
+        stub_const("House::CREATES_NESTED_DRAFTS_FOR", nil)
         House.requires_approval
-        House::DRAFT_EDITABLE_ASSOCIATIONS.sort.should == %i(permits rooms)
+        House.draft_target_associations.sort.should == %i(permits rooms)
       end
       it "raises a Configuration Error if a specified association doesn't exist" do
-        expect { House.requires_approval(associations: [:widgets])}.to raise_error(DraftPunk::ConfigurationError)
+        stub_const("House::CREATES_NESTED_DRAFTS_FOR", [:widgets])
+        expect { House.requires_approval }.to raise_error(DraftPunk::ConfigurationError)
       end
       it "works if nullify argument is empty" do
-        expect { House.requires_approval associations: House::APPROVABLE_ASSOCIATIONS}.to_not raise_error
-      end
-    end
-
-    context :accepts_nested_drafts_for do
-      after(:each) do
-        Room.disable_approval!
-      end
-      it 'sets editable associations for all in the first argument' do
-        Room.accepts_nested_drafts_for Room::APPROVABLE_ASSOCIATIONS
-        Room::DRAFT_EDITABLE_ASSOCIATIONS.sort.should == Room::APPROVABLE_ASSOCIATIONS.sort
-      end
-      it 'raises a Configuration Error if no associations are passed as an argument' do
-        expect { Room.accepts_nested_drafts_for }.to raise_error(DraftPunk::ConfigurationError)
-      end
-      it "raises a Configuration Error if a specified association doesn't exist" do
-        expect { Room.accepts_nested_drafts_for [:widgets]}.to raise_error(DraftPunk::ConfigurationError)
+        expect { House.requires_approval }.to_not raise_error
       end
     end
   end
@@ -63,7 +45,7 @@ describe DraftPunk::Model::ActiveRecordClassMethods do
         h.permits.count.should be(1)
       end
       it 'should have an approved_version_id for the right models' do
-        [House, Room, Closet, FlooringStyle].each do |model|
+        [House, Room, Closet].each do |model|
           model.column_names.should include('approved_version_id')
         end
       end

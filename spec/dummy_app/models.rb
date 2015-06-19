@@ -2,26 +2,26 @@ class House < ActiveRecord::Base
   has_many :rooms
   has_many :permits
 
-	APPROVABLE_ASSOCIATIONS = %i(rooms)
 	NULLIFY_ATTRIBUTES = %i(address)
+  CREATES_NESTED_DRAFTS_FOR = %i(rooms)
 end
 
 class Room < ActiveRecord::Base
   belongs_to :house
-  belongs_to :flooring_style
+  has_one    :custom_flooring_style
   has_many   :electrical_outlets
   has_many   :closets
   has_many   :trim_styles
 
-	APPROVABLE_ASSOCIATIONS = %i(flooring_style closets trim_styles)
+  CREATES_NESTED_DRAFTS_FOR = %i(custom_flooring_style closets trim_styles)
 end
 
 class Permit < ActiveRecord::Base
   belongs_to :house
 end
 
-class FlooringStyle < ActiveRecord::Base
-  has_one :room
+class CustomFlooringStyle < ActiveRecord::Base
+  belongs_to :room
 end
 
 class ElectricalOutlet < ActiveRecord::Base

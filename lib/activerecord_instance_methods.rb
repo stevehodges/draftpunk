@@ -78,14 +78,11 @@ module DraftPunk
         approved_version || self
       end
 
+
     protected #################################################################
 
       def get_draft
         draft || create_draft_version
-      end
-
-      def editable_association_names
-        self.class.const_get(:DRAFT_EDITABLE_ASSOCIATIONS)
       end
 
     private ####################################################################
@@ -105,14 +102,14 @@ module DraftPunk
 
       def save_attribute_changes_and_has_one_assocations_from_draft
         @draft_version.attributes.each do |attribute, value|
-        	next unless attribute.in? usable_approvable_attributes
+          next unless attribute.in? usable_approvable_attributes
           @live_version.send("#{attribute}=", value)
         end
         @live_version.save!
       end
 
       def update_has_many_associations_from_draft
-        editable_association_names.each do |assoc|
+        self.class.draft_target_associations.each do |assoc|
           reflection = self.class.reflect_on_association(assoc)
           next unless reflection_is_has_many(reflection)
 
@@ -128,18 +125,31 @@ module DraftPunk
       end
 
       def usable_approvable_attributes
-      	approvable_attributes.map(&:to_s) - ['approved_version_id', 'id']
+        nullified_attributes = self.class.const_defined?(:DRAFT_NULLIFY_ATTRIBUTES) ? self.class.const_get(:DRAFT_NULLIFY_ATTRIBUTES) : []
+        approvable_attributes.map(&:to_s) - nullified_attributes.map(&:to_s) - ['approved_version_id', 'id']
+      end
+
+      def current_approvable_attributes
+        attribs = {}
+        attributes.each do |k,v|
+          attribs[k] = v if k.in?(diff_relevant_attributes)
+        end
+      end
+
+      def association_tracks_approved_version?(name)
+        self.class.reflect_on_association(name.to_sym).klass.column_names.include? 'approved_version_id'
       end
 
       def association_is_has_many(name)
-      	# Note when implementing for Rails 4, macro is renamed to something else
+        # Note when implementing for Rails 4, macro is renamed to something else
         self.class.reflect_on_association(name.to_sym).macro == :has_many
       end
 
       def reflection_is_has_many(reflection)
-      	# Note when implementing for Rails 4, macro is renamed to something else
-      	reflection.macro == :has_many
+        # Note when implementing for Rails 4, macro is renamed to something else
+        reflection.macro == :has_many
       end
+
     end
 
     module InstanceInterrogators
