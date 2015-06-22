@@ -94,8 +94,8 @@ module DraftPunk
         begin
           self.draft = dupe
           self.draft.save!(validate: false)
-        rescue => e
-          raise DraftCreationError, dupe.errors.full_messages.to_sentence
+        rescue => message
+          raise DraftCreationError, message
         end
         draft
       end

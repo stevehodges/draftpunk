@@ -35,7 +35,7 @@ module DraftPunk
       @message = message
     end
     def to_s
-      "the draft failed to be created due to validation error(s): #{@message}"
+      "the draft failed to be created: #{@message}"
     end
   end
 
