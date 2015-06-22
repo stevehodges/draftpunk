@@ -102,6 +102,7 @@ module DraftPunk
           include_association associations
           customize(lambda {|live_obj, draft_obj|
             draft_obj.approved_version_id = live_obj.id if draft_obj.respond_to?(:approved_version_id)
+            draft_obj.temporary_approved_object = live_obj
           })
         end
         target_class.const_set :DRAFT_PUNK_IS_SETUP, true
@@ -135,6 +136,9 @@ module DraftPunk
           # TODO: fix - the unscoped isn't working with default scope, so not defining this draft scope if set_default_scope
           target_class.scope      :draft,    -> { unscoped.where("#{target_class.quoted_table_name}.approved_version_id IS NOT NULL") }
         end
+
+        target_class.send       :attr_accessor, :temporary_approved_object
+        target_class.send       :before_create, :before_create_draft if target_class.method_defined?(:before_create_draft)
       end
 
       def is_relevant_association_type?(activerecord_reflection)

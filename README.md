@@ -188,6 +188,24 @@ Alternately, you may want to modify your controllers to only access _approved_ o
 
 ## TODO: Customizing approvable_attributes, changes_require_approval
 
+## Options before creating a draft
+
+When calling `requires_approval`, you can pass a `nullify` option to set attributes to null once the draft is created:
+
+    requires_approval nullify: [:subdomain]
+
+This could be useful if your model has an attribute which should not persist. In this example, each Business has a unique subdomain (ie. business_name.foo.com ). By nullifying this out, the subdomain on the draft would be nil. 
+
+### Before create callback
+
+If you define a method on your model called `before_create_draft`, that method will be executed before the duplicate is created.
+
+You can access `self` (which is the DRAFT version being created), or the `temporary_approved_object` (the original object) in this method
+
+    def before_create_draft
+      logger.warn "#{self.name} is being created from #{temporary_approved_object.class.name} ##{temporary_approved_object.id}" # outputs: DerpCorp is being created from Business #1
+    end
+
 ## Installation
 
 Add this line to your application's Gemfile:
