@@ -82,6 +82,14 @@ module DraftPunk
         end.map(&:to_sym)
       end
 
+      # Whether this model is configured to track the approved version of a draft object.
+      # This will be true if the model has an approved_version_id column
+      #
+      # @return (Boolean)
+      def tracks_approved_version?
+        column_names.include? 'approved_version_id'
+      end
+
     protected #################################################################
 
       def default_draft_target_associations

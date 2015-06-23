@@ -78,7 +78,6 @@ module DraftPunk
         approved_version || self
       end
 
-
     protected #################################################################
 
       def get_draft
@@ -105,6 +104,7 @@ module DraftPunk
           next unless attribute.in? usable_approvable_attributes
           @live_version.send("#{attribute}=", value)
         end
+        @live_version.before_publish_draft if @live_version.respond_to?(:before_publish_draft)
         @live_version.save!
       end
 
@@ -118,7 +118,7 @@ module DraftPunk
           attribute_updates = {}
           attribute_updates[reflection.foreign_key] = @live_version.id
           attribute_updates['updated_at']           = Time.now if reflection.klass.column_names.include?('updated_at')
-          attribute_updates['approved_version_id']  = nil
+          attribute_updates['approved_version_id']  = nil if reflection.klass.tracks_approved_version?
 
           @draft_version.send(assoc).update_all attribute_updates
         end
