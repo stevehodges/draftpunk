@@ -198,13 +198,19 @@ This could be useful if your model has an attribute which should not persist. In
 
 ### Before create callback
 
-If you define a method on your model called `before_create_draft`, that method will be executed before the duplicate is created.
+If you define a method on your model called `before_create_draft`, that method will be executed before the draft is created.
 
 You can access `self` (which is the DRAFT version being created), or the `temporary_approved_object` (the original object) in this method
 
     def before_create_draft
       logger.warn "#{self.name} is being created from #{temporary_approved_object.class.name} ##{temporary_approved_object.id}" # outputs: DerpCorp is being created from Business #1
     end
+
+## Options before publishing a draft
+
+### Before publish draft method
+
+If you define a method on your model called `before_publish_draft`, that method will be executed before the draft is published. Specifically, it happens after all attributes are copied from the draft to the approved version, and right before the approved version is saved. This allows you to do whatever you'd like to the model before it is saved.
 
 ## Installation
 
