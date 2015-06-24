@@ -91,8 +91,8 @@ module DraftPunk
         return draft if draft.present?
         dupe = amoeba_dup
         begin
-          self.draft = dupe
-          self.draft.save!(validate: false)
+          dupe.approved_version = self
+          dupe.save!(validate: false)
         rescue => message
           raise DraftCreationError, message
         end
