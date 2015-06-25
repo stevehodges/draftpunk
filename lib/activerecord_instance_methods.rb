@@ -92,7 +92,7 @@ module DraftPunk
         dupe = amoeba_dup
         begin
           dupe.approved_version = self
-          dupe.save!(validate: false)
+          dupe.save!
         rescue => message
           raise DraftCreationError, message
         end
