@@ -55,8 +55,8 @@ module DraftPunk
         return unless changes_require_approval? && @draft_version.is_draft? # No-op. ie. the business is in a state that doesn't require approval.
 
         transaction do
-          save_attribute_changes_and_has_one_assocations_from_draft
-          update_has_many_associations_from_draft
+          save_attribute_changes_and_belongs_to_assocations_from_draft
+          update_has_many_and_has_one_associations_from_draft
           @live_version.draft.destroy # We have to do this since we moved all the draft's has_many associations to @live_version. If you call "editable_version" later, it'll build the draft.
         end
         @live_version = self.class.find(@live_version.id)
@@ -99,7 +99,7 @@ module DraftPunk
         draft
       end
 
-      def save_attribute_changes_and_has_one_assocations_from_draft
+      def save_attribute_changes_and_belongs_to_assocations_from_draft
         @draft_version.attributes.each do |attribute, value|
           next unless attribute.in? usable_approvable_attributes
           @live_version.send("#{attribute}=", value)
@@ -108,19 +108,18 @@ module DraftPunk
         @live_version.save!
       end
 
-      def update_has_many_associations_from_draft
+      def update_has_many_and_has_one_associations_from_draft
         self.class.draft_target_associations.each do |assoc|
           reflection = self.class.reflect_on_association(assoc)
-          next unless reflection_is_has_many(reflection)
 
-          @live_version.send(assoc).destroy_all
+          reflection_is_has_many(reflection) ? @live_version.send(assoc).destroy_all : @live_version.send(assoc).destroy
 
           attribute_updates = {}
           attribute_updates[reflection.foreign_key] = @live_version.id
           attribute_updates['updated_at']           = Time.now if reflection.klass.column_names.include?('updated_at')
           attribute_updates['approved_version_id']  = nil if reflection.klass.tracks_approved_version?
 
-          @draft_version.send(assoc).update_all attribute_updates
+          reflection_is_has_many(reflection) ? @draft_version.send(assoc).update_all(attribute_updates) : @draft_version.send(assoc).update_attributes(attribute_updates, without_protection: true)
         end
       end
 

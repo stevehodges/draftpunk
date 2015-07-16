@@ -123,8 +123,10 @@ describe DraftPunk::Model::ActiveRecordInstanceMethods do
       @house.publish_draft!
       house = House.find @house.id
       house.architectual_style.should == @draft.architectual_style
-      house.rooms.first.closets.count.should be(2)
-      house.rooms.first.closets.pluck(:style).should == %w(hidden coat)
+      room = house.rooms.first
+      room.closets.count.should be(2)
+      room.closets.pluck(:style).should == %w(hidden coat)
+      room.custom_flooring_style.name.should == 'shag'
     end
 
     it "deletes the draft object after publishing" do
