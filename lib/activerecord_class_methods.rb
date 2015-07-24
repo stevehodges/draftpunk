@@ -48,7 +48,7 @@ module DraftPunk
         return unless ActiveRecord::Base.connection.table_exists?(table_name) # Short circuits if you're migrating
 
         associations = draft_target_associations if associations.empty?
-        associations = associations.map(&:to_sym)
+        set_valid_associations(associations)
 
         raise DraftPunk::ConfigurationError, "Cannot call requires_approval multiple times for #{name}" if const_defined? :DRAFT_PUNK_IS_SETUP
         self.const_set :DRAFT_NULLIFY_ATTRIBUTES, [nullify].flatten
@@ -100,14 +100,33 @@ module DraftPunk
         end.map{|r| r.name.downcase.to_sym }
       end
 
+      # Rejects the associations if the table hasn't been defined yet. This happens when
+      # running migrations which add that association's table.
+      def set_valid_associations(associations)
+        return const_get(:DRAFT_VALID_ASSOCIATIONS) if const_defined?(:DRAFT_VALID_ASSOCIATIONS)
+        associations = associations.map(&:to_sym)
+        valid_assocations = associations.select do |assoc|
+          reflection = reflect_on_association(assoc)
+          if reflection
+            table_name = reflection.klass.table_name
+            ActiveRecord::Base.connection.table_exists?(table_name)
+          else
+            false
+          end
+        end
+        self.const_set :DRAFT_VALID_ASSOCIATIONS, valid_assocations
+        valid_assocations
+      end
+
     private ###################################################################
 
       def setup_amoeba_for(target_class, set_default_scope: false)
         return if target_class.const_defined?(:DRAFT_PUNK_IS_SETUP)
         associations = target_class.draft_target_associations
+        associations = target_class.set_valid_associations(associations)
         target_class.amoeba do
           enable
-          include_association associations
+          include_association target_class.const_get(:DRAFT_VALID_ASSOCIATIONS)
           customize(lambda {|live_obj, draft_obj|
             draft_obj.approved_version_id = live_obj.id if draft_obj.respond_to?(:approved_version_id)
             draft_obj.temporary_approved_object = live_obj
