@@ -7,7 +7,7 @@ Gem::Specification.new do |spec|
   spec.name          = "draft_punk"
   spec.version       = DraftPunk::VERSION
   spec.authors       = ["Steve Hodges"]
-  spec.email         = ["sjhodges@gmail.com"]
+  spec.email         = ["steve.hodges@localstake.com"]
 
   spec.summary       = %q{Easy editing of a draft version of an ActiveRecord model and its associations, and publishing said draft's changes back to the original models.}
   spec.description   = <<-EOF
