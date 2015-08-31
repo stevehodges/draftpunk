@@ -22,9 +22,9 @@ describe DraftPunk::Model::ActiveRecordClassMethods do
         House.requires_approval
         House.draft_target_associations.sort.should == %i(permits rooms)
       end
-      it "raises a Configuration Error if a specified association doesn't exist" do
+      it "works if a specified association doesn't exist" do
         stub_const("House::CREATES_NESTED_DRAFTS_FOR", [:widgets])
-        expect { House.requires_approval }.to raise_error(DraftPunk::ConfigurationError)
+        expect { House.requires_approval }.to_not raise_error
       end
       it "works if nullify argument is empty" do
         expect { House.requires_approval }.to_not raise_error

@@ -51,13 +51,13 @@ module DraftPunk
           approved_versions.each do |approved|
             obj_diff = approved.draft_diff(include_associations: true, parent_object_fk: foreign_key, include_all_attributes: include_all_attributes)
             obj_diff.merge(draft_status: :deleted) unless draft_versions.find{|obj| obj.approved_version_id == approved.id }
-            diff[assoc] << obj_diff
+            diff[assoc] << obj_diff if (include_all_attributes || obj_diff[:draft_status] != :unchanged)
           end
           draft_versions.select{|obj| obj.approved_version_id.nil? }.each do |draft|
             diff[assoc] << draft.draft_diff(include_associations: true, include_all_attributes: include_all_attributes).merge(draft_status: :added)
           end
         end
-        diff
+        diff.select{|k,v| v.present? || include_all_attributes}
       end
 
       def diff_status(diff, parent_object_fk)

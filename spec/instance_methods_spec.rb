@@ -152,7 +152,7 @@ describe DraftPunk::Model::ActiveRecordInstanceMethods do
     end
 
     it 'returns associations which have changed in the draft with include_associations option' do
-      diff = @house.draft_diff(include_associations: true)
+      diff = @house.draft_diff(include_associations: true, include_all_attributes: true)
       expected_house_keys = House.draft_target_associations + @house.send(:diff_relevant_attributes) + [:draft_status]
 
       diff.keys.map(&:to_sym).sort.should == expected_house_keys.map(&:to_sym).sort
