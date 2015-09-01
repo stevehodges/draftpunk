@@ -36,6 +36,7 @@ module DraftPunk
         diff.merge!(draft_status: :deleted) if parent_object_fk.present? && draft_attribs[parent_object_fk].nil?
         diff.merge!(associations_diff(include_all_attributes)) if include_associations
         diff[:draft_status] = diff_status(diff, parent_object_fk) unless diff.has_key?(:draft_status)
+        diff[:class_info]   = {table_name: approved_obj.class.table_name, class_name: approved_obj.class.name}
         diff
       end
 

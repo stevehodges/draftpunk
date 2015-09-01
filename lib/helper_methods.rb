@@ -1,7 +1,7 @@
 module DraftPunkHelper
   def summarize_draft_changes(draft_diff)
     changed = []
-    draft_diff.except("id", :draft_status).each do |k,v|
+    draft_diff.except("id", :draft_status, :class_info).each do |k,v|
       if v.is_a?(Array)
         changed << summarize_association_changes(k,v)
       else
