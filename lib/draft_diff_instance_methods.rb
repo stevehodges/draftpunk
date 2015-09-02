@@ -1,7 +1,7 @@
 module DraftPunk
   module Model
     module DraftDiffInstanceMethods
-
+      require 'differ'
       # Return the differences between the live and draft object.
       #
       # If include_associations is true, it will return the diff for all child associations, recursively until it gets
@@ -9,9 +9,11 @@ module DraftPunk
       #
       # @param include_associations [Boolean] include diff for child objects, recursive (possibly down to grandchildren and beyond)
       # @param include_all_attributes [Boolean] return all attributes in the results, including those which have not changed
+      # @param include_diff [Boolean] include an html formatted diff of changes between the live and draft, for each attribute 
+      # @param diff_format [Symbol] format the diff output per the options available in differ (:html, :ascii, :color)
       # @return (Hash)
-      def draft_diff(include_associations: false, parent_object_fk: nil, include_all_attributes: false)
-        get_object_changes(self, draft, include_associations, parent_object_fk, include_all_attributes)
+      def draft_diff(include_associations: false, parent_object_fk: nil, include_all_attributes: false, include_diff: false, diff_format: :html)
+        get_object_changes(self, draft, include_associations, parent_object_fk, include_all_attributes, include_diff, diff_format)
       end
 
     protected #################################################################
@@ -24,23 +26,26 @@ module DraftPunk
 
     private ####################################################################
 
-      def get_object_changes(approved_obj, draft_obj, include_associations, parent_object_fk, include_all_attributes)
+      def get_object_changes(approved_obj, draft_obj, include_associations, parent_object_fk, include_all_attributes, include_diff, diff_format)
         diff = {}
         approved_attribs = approved_obj ? approved_obj.current_approvable_attributes : {}
         draft_attribs    = draft_obj    ? draft_obj.current_approvable_attributes    : {}
         diff_relevant_attributes(parent_object_fk).each do |attrib|
           live  = approved_attribs[attrib]
           draft = draft_attribs[attrib]
-          diff[attrib] = {live: live, draft: draft} if include_all_attributes || live != draft 
+          if include_all_attributes || live != draft 
+            diff[attrib] = {live: live, draft: draft}
+            diff[attrib].merge!({diff: Differ.diff_by_word(draft, live).format_as(diff_format)}) if include_diff && (live.present? && draft.present? && live.is_a?(String) && draft.is_a?(String))
+          end
         end
         diff.merge!(draft_status: :deleted) if parent_object_fk.present? && draft_attribs[parent_object_fk].nil?
-        diff.merge!(associations_diff(include_all_attributes)) if include_associations
+        diff.merge!(associations_diff(include_all_attributes, include_diff, diff_format)) if include_associations
         diff[:draft_status] = diff_status(diff, parent_object_fk) unless diff.has_key?(:draft_status)
         diff[:class_info]   = {table_name: approved_obj.class.table_name, class_name: approved_obj.class.name}
         diff
       end
 
-      def associations_diff(include_all_attributes)
+      def associations_diff(include_all_attributes, include_diff, diff_format)
         diff = {}
         self.class.draft_target_associations.each do |assoc|
           next unless association_tracks_approved_version?(assoc)
@@ -50,7 +55,7 @@ module DraftPunk
           foreign_key = self.class.reflect_on_association(assoc).foreign_key
 
           approved_versions.each do |approved|
-            obj_diff = approved.draft_diff(include_associations: true, parent_object_fk: foreign_key, include_all_attributes: include_all_attributes)
+            obj_diff = approved.draft_diff(include_associations: true, parent_object_fk: foreign_key, include_all_attributes: include_all_attributes, include_diff: include_diff, diff_format: diff_format)
             obj_diff.merge(draft_status: :deleted) unless draft_versions.find{|obj| obj.approved_version_id == approved.id }
             diff[assoc] << obj_diff if (include_all_attributes || obj_diff[:draft_status] != :unchanged)
           end
