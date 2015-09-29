@@ -12,8 +12,9 @@ module DraftPunk
       # @param include_diff [Boolean] include an html formatted diff of changes between the live and draft, for each attribute 
       # @param diff_format [Symbol] format the diff output per the options available in differ (:html, :ascii, :color)
       # @return (Hash)
-      def draft_diff(include_associations: false, parent_object_fk: nil, include_all_attributes: false, include_diff: false, diff_format: :html)
-        get_object_changes(self, draft, include_associations, parent_object_fk, include_all_attributes, include_diff, diff_format)
+      def draft_diff(include_associations: false, parent_object_fk: nil, include_all_attributes: false, include_diff: false, diff_format: :html, recursed: false)
+        draft_obj = recursed ? draft : get_draft # get_draft will create missing drafts. Based on the logic, this should only happen when you *first* call draft_diff
+        get_object_changes(self, draft_obj, include_associations, parent_object_fk, include_all_attributes, include_diff, diff_format)
       end
 
     protected #################################################################
@@ -50,17 +51,17 @@ module DraftPunk
         self.class.draft_target_associations.each do |assoc|
           next unless association_tracks_approved_version?(assoc)
           diff[assoc] = []
-          draft_versions = [editable_version.send(assoc)].flatten.compact
+          draft_versions = draft.present? ? [draft.send(assoc)].flatten.compact : []
           approved_versions = [get_approved_version.send(assoc)].flatten.compact
           foreign_key = self.class.reflect_on_association(assoc).foreign_key
 
           approved_versions.each do |approved|
-            obj_diff = approved.draft_diff(include_associations: true, parent_object_fk: foreign_key, include_all_attributes: include_all_attributes, include_diff: include_diff, diff_format: diff_format)
+            obj_diff = approved.draft_diff(include_associations: true, parent_object_fk: foreign_key, include_all_attributes: include_all_attributes, include_diff: include_diff, diff_format: diff_format, recursed: true)
             obj_diff.merge(draft_status: :deleted) unless draft_versions.find{|obj| obj.approved_version_id == approved.id }
             diff[assoc] << obj_diff if (include_all_attributes || obj_diff[:draft_status] != :unchanged)
           end
           draft_versions.select{|obj| obj.approved_version_id.nil? }.each do |draft|
-            diff[assoc] << draft.draft_diff(include_associations: true, include_all_attributes: include_all_attributes).merge(draft_status: :added)
+            diff[assoc] << draft.draft_diff(include_associations: true, include_all_attributes: include_all_attributes, recursed: true).merge(draft_status: :added)
           end
         end
         diff.select{|k,v| v.present? || include_all_attributes}
