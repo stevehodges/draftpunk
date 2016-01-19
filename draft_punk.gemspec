@@ -31,19 +31,15 @@ EOF
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  if spec.respond_to?(:metadata)
-    spec.metadata['allowed_push_host'] = "TODO: Set to 'http://mygemserver.com' to prevent pushes to rubygems.org, or delete to allow pushes to any server."
-  end
-
-  spec.add_runtime_dependency     "amoeba",    ">= 3.0.0"
-  spec.add_runtime_dependency     "unscoped_associations"
-  spec.add_runtime_dependency     "differ"
-  spec.add_runtime_dependency     'rails', "~> 3"
+  spec.add_runtime_dependency     "amoeba",    "~> 3.0"
+  spec.add_runtime_dependency     "unscoped_associations", "< 1.0"
+  spec.add_runtime_dependency     "differ",    "< 0.2"
+  spec.add_runtime_dependency     'rails',     "~> 3.0"
 
   spec.add_development_dependency "bundler",   "~> 1.9"
   spec.add_development_dependency "rake",      "~> 10.0"
   spec.add_development_dependency "rspec",     "~> 2.0"
-  spec.add_development_dependency "sqlite3"
-  spec.add_development_dependency "yard"
+  spec.add_development_dependency "sqlite3",   "~> 1.0"
+  spec.add_development_dependency "yard",      "< 1.0"
 
 end
