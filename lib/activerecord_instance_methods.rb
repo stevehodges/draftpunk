@@ -92,7 +92,7 @@ module DraftPunk
         dupe = amoeba_dup
         begin
           dupe.approved_version = self
-          dupe.save!
+          dupe.save(validate: false)
         rescue => message
           raise DraftCreationError, message
         end
@@ -105,7 +105,7 @@ module DraftPunk
           @live_version.send("#{attribute}=", value)
         end
         @live_version.before_publish_draft if @live_version.respond_to?(:before_publish_draft)
-        @live_version.save!
+        @live_version.save(validate: false)
       end
 
       def update_has_many_and_has_one_associations_from_draft
