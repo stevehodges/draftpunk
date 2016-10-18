@@ -127,16 +127,24 @@ module DraftPunk
         target_class.amoeba do
           enable
           include_association target_class.const_get(:DRAFT_VALID_ASSOCIATIONS)
-          customize(lambda {|live_obj, draft_obj|
-            draft_obj.approved_version_id = live_obj.id if draft_obj.respond_to?(:approved_version_id)
-            draft_obj.temporary_approved_object = live_obj
-          })
+          customize target_class.set_approved_version_id_callback
         end
         target_class.const_set :DRAFT_PUNK_IS_SETUP, true
 
         setup_associations_and_scopes_for target_class, set_default_scope: set_default_scope
         setup_draft_association_persistance_for_children_of target_class, associations
       end
+
+    public ###################################################################
+
+      def set_approved_version_id_callback
+        lambda do |live_obj, draft_obj|
+          draft_obj.approved_version_id = live_obj.id if draft_obj.respond_to?(:approved_version_id)
+          draft_obj.temporary_approved_object = live_obj
+        end
+      end
+
+    private ###################################################################
 
       def setup_draft_association_persistance_for_children_of(target_class, associations=nil)
         associations = target_class.draft_target_associations unless associations

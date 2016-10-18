@@ -191,4 +191,20 @@ describe DraftPunk::Model::ActiveRecordInstanceMethods do
     end
 
   end
+
+  context :after_create_draft do
+    before(:each) do
+      House.send(:define_method, 'after_create_draft') do
+        self.architectual_style = 'Lodge'
+        save
+      end
+      setup_model_approvals
+      setup_house_with_draft
+    end
+
+    it "modifies the draft object per the after_create_draft when a draft is created" do
+      expect(@house.architectual_style).to eq 'Ranch'
+      expect(@draft.architectual_style).to eq 'Lodge'
+    end
+  end
 end

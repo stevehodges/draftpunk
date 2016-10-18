@@ -206,6 +206,14 @@ You can access `self` (which is the DRAFT version being created), or the `tempor
       logger.warn "#{self.name} is being created from #{temporary_approved_object.class.name} ##{temporary_approved_object.id}" # outputs: DerpCorp is being created from Business #1
     end
 
+### After create callback
+
+If you define a method on your model called `after_create_draft`, that method will be executed before the draft is created. This is useful in cases when you need a fully set-up draft to modify. For instance, after all of its associations have been set.
+
+You can access `self` (which is the DRAFT version being created), or the `temporary_approved_object` (the original object) in this method
+
+**Note that you are responsible for any saves needed**. draft_punk does not save again after your after_create executes
+
 ## Options before publishing a draft
 
 ### Before publish draft method

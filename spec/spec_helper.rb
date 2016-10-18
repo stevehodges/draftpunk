@@ -63,3 +63,7 @@ def setup_draft_with_changes
   @draft.save!
   @draft = House.unscoped.find @draft.id
 end
+
+def set_house_architectual_style_to_lodge
+  self.architectual_style = 'Lodge'
+end

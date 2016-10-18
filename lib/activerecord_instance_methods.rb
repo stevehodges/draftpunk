@@ -35,6 +35,12 @@ module DraftPunk
       def approvable_attributes
         self.attributes.keys - ["created_at"]
       end
+
+      # Evaluates after the draft is created.
+      # Override in your model to implement custom behavior.
+      def after_create_draft
+      end
+
       #############################
       # END CONFIGURABLE METHODS
       #############################
@@ -93,6 +99,7 @@ module DraftPunk
         begin
           dupe.approved_version = self
           dupe.save(validate: false)
+          dupe.after_create_draft
         rescue => message
           raise DraftCreationError, message
         end
@@ -112,7 +119,7 @@ module DraftPunk
         self.class.draft_target_associations.each do |assoc|
           reflection = self.class.reflect_on_association(assoc)
 
-          reflection_is_has_many(reflection) ? @live_version.send(assoc).destroy_all : @live_version.send(assoc).destroy
+          reflection_is_has_many(reflection) ? @live_version.send(assoc).destroy_all : @live_version.send(assoc).try(:destroy)
 
           attribute_updates = {}
           attribute_updates[reflection.foreign_key] = @live_version.id
