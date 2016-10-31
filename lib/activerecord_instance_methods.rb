@@ -55,7 +55,7 @@ module DraftPunk
       # again on the approved object.
       # 
       # @return [ActiveRecord Object] updated version of the approved object
-      def publish_draft!
+      def publish_draft! skip_destroy: false
         @live_version  = get_approved_version
         @draft_version = editable_version
         return unless changes_require_approval? && @draft_version.is_draft? # No-op. ie. the business is in a state that doesn't require approval.
@@ -63,7 +63,7 @@ module DraftPunk
         transaction do
           save_attribute_changes_and_belongs_to_assocations_from_draft
           update_has_many_and_has_one_associations_from_draft
-          @live_version.draft.destroy # We have to do this since we moved all the draft's has_many associations to @live_version. If you call "editable_version" later, it'll build the draft.
+          @live_version.draft.destroy unless skip_destroy # We have to do this since we moved all the draft's has_many associations to @live_version. If you call "editable_version" later, it'll build the draft.
         end
         @live_version = self.class.find(@live_version.id)
       end

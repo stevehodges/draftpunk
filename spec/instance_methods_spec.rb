@@ -136,6 +136,16 @@ describe DraftPunk::Model::ActiveRecordInstanceMethods do
       house.draft.should be_nil
       House.draft.count.should == (original_count - 1)
     end
+
+    context "when skip_delete option is present" do
+      it "does not delete draft object after publishing" do
+        original_count = House.draft.count
+        @house.publish_draft! skip_destroy: true
+        house = House.find @house.id
+        house.draft.should_not be_nil
+        House.draft.count.should == original_count
+      end
+    end
   end
 
   context :draft_diff do
@@ -145,7 +155,7 @@ describe DraftPunk::Model::ActiveRecordInstanceMethods do
 
     it 'returns attributes which have changed in the draft' do
       diff = @house.draft_diff
-      diff.except("id").should == {
+      diff.except("id", :class_info).should == {
         "architectual_style"=>{:live=>"Ranch", :draft=>"Victorian"},
         draft_status: :changed
       }
@@ -153,7 +163,7 @@ describe DraftPunk::Model::ActiveRecordInstanceMethods do
 
     it 'returns associations which have changed in the draft with include_associations option' do
       diff = @house.draft_diff(include_associations: true, include_all_attributes: true)
-      expected_house_keys = House.draft_target_associations + @house.send(:diff_relevant_attributes) + [:draft_status]
+      expected_house_keys = House.draft_target_associations + @house.send(:diff_relevant_attributes) + [:draft_status, :class_info]
 
       diff.keys.map(&:to_sym).sort.should == expected_house_keys.map(&:to_sym).sort
       diff[:rooms].count.should == @draft.rooms.count
