@@ -160,7 +160,6 @@ module DraftPunk
       def setup_associations_and_scopes_for(target_class, set_default_scope: false)
         target_class.send       :include, InstanceInterrogators unless target_class.method_defined?(:has_draft?)
         target_class.send       :attr_accessor, :temporary_approved_object
-        target_class.send       :before_create, :before_create_draft if target_class.method_defined?(:before_create_draft)
 
         return if target_class.reflect_on_association(:approved_version) || !target_class.column_names.include?('approved_version_id')
         target_class.send       :include, ActiveRecordInstanceMethods

@@ -41,6 +41,11 @@ module DraftPunk
       def after_create_draft
       end
 
+      # Evaluates before the draft is created.
+      # Override in your model to implement custom behavior.
+      def before_create_draft
+      end
+
       #############################
       # END CONFIGURABLE METHODS
       #############################
@@ -98,6 +103,7 @@ module DraftPunk
         dupe = amoeba_dup
         begin
           dupe.approved_version = self
+          dupe.before_create_draft
           dupe.save(validate: false)
           dupe.after_create_draft
         rescue => message
