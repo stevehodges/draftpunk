@@ -63,7 +63,9 @@ module DraftPunk
         transaction do
           save_attribute_changes_and_belongs_to_assocations_from_draft
           update_has_many_and_has_one_associations_from_draft
-          @live_version.draft.destroy # We have to do this since we moved all the draft's has_many associations to @live_version. If you call "editable_version" later, it'll build the draft.
+          # We have to destroy the draft this since we moved all the draft's has_many associations to @live_version. If you call "editable_version" later, it'll build the draft.
+          # We destroy_all in case extra drafts are in the database. Extra drafts can potentially be created due to race conditions in the application.
+          self.class.unscoped.where(approved_version_id: @live_version.id).destroy_all
         end
         @live_version = self.class.find(@live_version.id)
       end
