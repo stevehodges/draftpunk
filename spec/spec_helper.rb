@@ -1,5 +1,6 @@
 $LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
 require 'active_record'
+# ActiveSupport::Deprecation.debug = true
 require 'action_view'
 ActiveRecord::Base.establish_connection(:adapter => "sqlite3", :database => ":memory:")
 require 'draft_punk'

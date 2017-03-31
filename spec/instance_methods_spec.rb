@@ -145,15 +145,16 @@ describe DraftPunk::Model::ActiveRecordInstanceMethods do
 
     it 'returns attributes which have changed in the draft' do
       diff = @house.draft_diff
-      diff.except("id").should == {
+      expect(diff.except("id")).to eq({
         "architectual_style"=>{:live=>"Ranch", :draft=>"Victorian"},
-        draft_status: :changed
-      }
+        :draft_status=>:changed,
+        :class_info=>{:table_name=>"houses", :class_name=>"House"}
+      })
     end
 
     it 'returns associations which have changed in the draft with include_associations option' do
       diff = @house.draft_diff(include_associations: true, include_all_attributes: true)
-      expected_house_keys = House.draft_target_associations + @house.send(:diff_relevant_attributes) + [:draft_status]
+      expected_house_keys = House.draft_target_associations + @house.send(:diff_relevant_attributes) + [:draft_status, :class_info]
 
       diff.keys.map(&:to_sym).sort.should == expected_house_keys.map(&:to_sym).sort
       diff[:rooms].count.should == @draft.rooms.count

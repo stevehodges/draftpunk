@@ -45,7 +45,7 @@ module DraftPunk
       # @param associations [Array] Use internally; set associations to create drafts for in the CREATES_NESTED_DRAFTS_FOR constant
       # @return true
       def requires_approval(associations: [], nullify: [], set_default_scope: false)
-        return unless ActiveRecord::Base.connection.table_exists?(table_name) # Short circuits if you're migrating
+        return unless draft_punk_table_exists?(table_name) # Short circuits if you're migrating
 
         associations = draft_target_associations if associations.empty?
         set_valid_associations(associations)
@@ -109,7 +109,7 @@ module DraftPunk
           reflection = reflect_on_association(assoc)
           if reflection
             table_name = reflection.klass.table_name
-            ActiveRecord::Base.connection.table_exists?(table_name)
+            draft_punk_table_exists?(table_name)
           else
             false
           end
@@ -181,6 +181,13 @@ module DraftPunk
         activerecord_reflection.macro.in? Amoeba::Config::DEFAULTS[:known_macros]
       end
 
+      def draft_punk_table_exists?(table_name)
+        if ActiveRecord::Base.connection.respond_to? :data_source_exists?
+          ActiveRecord::Base.connection.data_source_exists?(table_name)
+        else
+          ActiveRecord::Base.connection.table_exists?(table_name)
+        end
+      end
     end
 
   end
