@@ -166,13 +166,11 @@ module DraftPunk
         target_class.send       :include, ActiveRecordInstanceMethods
         target_class.send       :include, DraftDiffInstanceMethods
         target_class.belongs_to :approved_version, class_name: target_class.name
-        target_class.has_one    :draft, class_name: target_class.name, foreign_key: :approved_version_id, unscoped: true
         target_class.scope      :approved, -> { where("#{target_class.quoted_table_name}.approved_version_id IS NULL") }
+        target_class.has_one    :draft, -> { unscope(where: :approved) }, class_name: target_class.name, foreign_key: :approved_version_id
+        target_class.scope      :draft, -> { unscoped.where("#{target_class.quoted_table_name}.approved_version_id IS NOT NULL") }
         if set_default_scope
           target_class.default_scope -> { approved }
-        else
-          # TODO: fix - the unscoped isn't working with default scope, so not defining this draft scope if set_default_scope
-          target_class.scope      :draft,    -> { unscoped.where("#{target_class.quoted_table_name}.approved_version_id IS NOT NULL") }
         end
       end
 
