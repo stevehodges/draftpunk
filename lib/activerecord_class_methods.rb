@@ -125,8 +125,8 @@ module DraftPunk
         associations = target_class.draft_target_associations
         associations = target_class.set_valid_associations(associations)
         target_class.amoeba do
-          enable
-          include_association target_class.const_get(:DRAFT_VALID_ASSOCIATIONS)
+          enable 
+          include_associations target_class.const_get(:DRAFT_VALID_ASSOCIATIONS) unless target_class.const_get(:DRAFT_VALID_ASSOCIATIONS).empty?
           customize target_class.set_approved_version_id_callback
         end
         target_class.const_set :DRAFT_PUNK_IS_SETUP, true
