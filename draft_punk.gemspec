@@ -32,7 +32,6 @@ EOF
   spec.require_paths = ["lib"]
 
   spec.add_runtime_dependency     "amoeba",    "~> 3.0"
-  spec.add_runtime_dependency     "unscoped_associations", "< 1.0"
   spec.add_runtime_dependency     "differ",    "< 0.2"
   spec.add_runtime_dependency     'rails',     "> 3.0", "< 6.0"
 
