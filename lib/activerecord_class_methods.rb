@@ -165,7 +165,7 @@ module DraftPunk
         return if target_class.reflect_on_association(:approved_version) || !target_class.column_names.include?('approved_version_id')
         target_class.send       :include, ActiveRecordInstanceMethods
         target_class.send       :include, DraftDiffInstanceMethods
-        target_class.belongs_to :approved_version, class_name: target_class.name
+        target_class.belongs_to :approved_version, class_name: target_class.name, optional: true
         target_class.scope      :approved, -> { where("#{target_class.quoted_table_name}.approved_version_id IS NULL") }
         target_class.has_one    :draft, -> { unscope(where: :approved) }, class_name: target_class.name, foreign_key: :approved_version_id
         target_class.scope      :draft, -> { unscoped.where("#{target_class.quoted_table_name}.approved_version_id IS NOT NULL") }
