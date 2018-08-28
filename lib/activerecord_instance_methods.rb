@@ -105,6 +105,7 @@ module DraftPunk
         rescue => message
           raise DraftCreationError, message
         end
+        reload
         draft
       end
 

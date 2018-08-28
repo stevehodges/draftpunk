@@ -1,6 +1,5 @@
 require 'draft_punk/version'
 require 'amoeba'
-require 'unscoped_associations'
 require 'activerecord_class_methods'
 require 'helper_methods'
 

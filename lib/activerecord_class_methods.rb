@@ -125,8 +125,8 @@ module DraftPunk
         associations = target_class.draft_target_associations
         associations = target_class.set_valid_associations(associations)
         target_class.amoeba do
-          enable
-          include_association target_class.const_get(:DRAFT_VALID_ASSOCIATIONS)
+          enable 
+          include_associations target_class.const_get(:DRAFT_VALID_ASSOCIATIONS) unless target_class.const_get(:DRAFT_VALID_ASSOCIATIONS).empty?
           customize target_class.set_approved_version_id_callback
         end
         target_class.const_set :DRAFT_PUNK_IS_SETUP, true
@@ -165,14 +165,12 @@ module DraftPunk
         return if target_class.reflect_on_association(:approved_version) || !target_class.column_names.include?('approved_version_id')
         target_class.send       :include, ActiveRecordInstanceMethods
         target_class.send       :include, DraftDiffInstanceMethods
-        target_class.belongs_to :approved_version, class_name: target_class.name
-        target_class.has_one    :draft, class_name: target_class.name, foreign_key: :approved_version_id, unscoped: true
+        target_class.belongs_to :approved_version, class_name: target_class.name, optional: true
         target_class.scope      :approved, -> { where("#{target_class.quoted_table_name}.approved_version_id IS NULL") }
+        target_class.has_one    :draft, -> { unscope(where: :approved) }, class_name: target_class.name, foreign_key: :approved_version_id
+        target_class.scope      :draft, -> { unscoped.where("#{target_class.quoted_table_name}.approved_version_id IS NOT NULL") }
         if set_default_scope
           target_class.default_scope -> { approved }
-        else
-          # TODO: fix - the unscoped isn't working with default scope, so not defining this draft scope if set_default_scope
-          target_class.scope      :draft,    -> { unscoped.where("#{target_class.quoted_table_name}.approved_version_id IS NOT NULL") }
         end
       end
 
