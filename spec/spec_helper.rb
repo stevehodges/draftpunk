@@ -21,6 +21,9 @@ def disable_all_approvals
   TrimStyle.disable_approval!
 end
 
+# BECAUSE OF THE GEM'S COUPLING WITH ACTIVERECORD, THE TESTS
+# INTENTIONALLY HIT THE DATABASE.
+
 def setup_house_with_draft
   House.delete_all
   Room.delete_all

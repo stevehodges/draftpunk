@@ -8,15 +8,13 @@ describe 'GemSetup' do
   end
 
   context :test_setup do
-    it 'has models backed by a database' do
-      House.is_a?(Class).should == true
-      House.column_names.should include('architectual_style')
-      House.column_names.should include('approved_version_id')
-      House.new.should respond_to(:rooms)
-      Room.new.should  respond_to(:house)
-      Room.new.should  respond_to(:closets)
-      Room.new.should  respond_to(:electrical_outlets)
-      Room.new.should  respond_to(:custom_flooring_style)
-    end
+    it { expect(House.is_a?(Class)).to eq true }
+    it { expect(House.column_names).to include('architectual_style') }
+    it { expect(House.column_names).to include('approved_version_id') }
+    it { expect(House.new).to respond_to(:rooms) }
+    it { expect(Room.new ).to respond_to(:house) }
+    it { expect(Room.new ).to respond_to(:closets) }
+    it { expect(Room.new ).to respond_to(:electrical_outlets) }
+    it { expect(Room.new ).to respond_to(:custom_flooring_style) }
   end
 end
