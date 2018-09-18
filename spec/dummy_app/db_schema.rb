@@ -22,7 +22,10 @@ ActiveRecord::Schema.define(:version => 20150615203843) do
     t.integer :length,   default: 12
     t.integer :height,   default: 8
 
-    t.integer :approved_version_id
+    t.integer  :approved_version_id
+    t.integer  :current_approved_version_id
+    t.datetime :created_at
+    t.datetime :updated_at
   end
   create_table :electrical_outlets, force: true do |t|
     t.integer :room_id

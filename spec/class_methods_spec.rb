@@ -4,7 +4,7 @@ describe DraftPunk::Model::ActiveRecordClassMethods do
 
   context :valid_arguments do
 
-    context '.requires_approval' do
+    describe '.requires_approval' do
       after { disable_all_approvals }
 
       it "works if the class has no associations" do
@@ -28,6 +28,31 @@ describe DraftPunk::Model::ActiveRecordClassMethods do
       it "works if nullify argument is empty" do
         expect { House.requires_approval }.to_not raise_error
       end
+    end
+  end
+
+  describe '.tracks_approved_version?' do
+    it "is false if the table doesn't have an attribute to track approved version" do
+      Permit.requires_approval
+      expect(Permit.column_names).to_not include('approved_version_id')
+      expect(Permit.tracks_approved_version?).to be false
+    end
+
+    it "is true if the table has an attribute to track approved version" do
+      expect(House.column_names).to include('approved_version_id')
+      expect(House.tracks_approved_version?).to be true
+    end
+  end
+
+  describe '.tracks_approved_version_history?' do
+    it "is false if the table doesn't have an attribute to track approved version" do
+      expect(House.column_names).to_not include('current_approved_version_id')
+      expect(House.tracks_approved_version_history?).to be false
+    end
+
+    it "is true if the table has an attribute to track approved version" do
+      expect(Room.column_names).to include('current_approved_version_id')
+      expect(Room.tracks_approved_version_history?).to be true
     end
   end
 

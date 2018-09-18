@@ -1,5 +1,6 @@
 require 'activerecord_instance_methods'
 require 'draft_diff_instance_methods'
+require 'previous_version_instance_methods'
 
 module DraftPunk
   module Model
@@ -42,22 +43,24 @@ module DraftPunk
       #    persist those on the draft.
       # @param set_default_scope [Boolean] If true, set a default scope on this model for the approved scope; only approved objects
       #    will be returned in ActiveRecord queries, unless you call Model.unscoped
+      # @param allow_previous_versions_to_be_changed [Boolean] If the model tracks approved version history, and this
+      #    param is false, previously-approved versions of the object cannot be saved (via a before_save callback )
       # @param associations [Array] Use internally; set associations to create drafts for in the CREATES_NESTED_DRAFTS_FOR constant
       # @return true
-      def requires_approval(associations: [], nullify: [], set_default_scope: false)
+      def requires_approval(associations: [], nullify: [], set_default_scope: false, allow_previous_versions_to_be_changed: true)
         return unless draft_punk_table_exists?(table_name) # Short circuits if you're migrating
 
         associations = draft_target_associations if associations.empty?
         set_valid_associations(associations)
 
-        raise DraftPunk::ConfigurationError, "Cannot call requires_approval multiple times for #{name}" if const_defined? :DRAFT_PUNK_IS_SETUP
-        self.const_set :DRAFT_NULLIFY_ATTRIBUTES, [nullify].flatten
+        raise DraftPunk::ConfigurationError, "Cannot call requires_approval multiple times for #{name}" if const_defined?(:DRAFT_PUNK_IS_SETUP)
+        self.const_set :DRAFT_NULLIFY_ATTRIBUTES, Array(nullify).flatten.freeze
 
         amoeba do
           nullify nullify
           # Note that the amoeba associations and customize options are being set in setup_associations_and_scopes_for
         end
-        setup_amoeba_for self, set_default_scope: set_default_scope
+        setup_amoeba_for self, set_default_scope: set_default_scope, allow_previous_versions_to_be_changed: allow_previous_versions_to_be_changed
         true
       end
 
@@ -65,8 +68,9 @@ module DraftPunk
       # called multiple times. Only the usage for that use case is supported. Use at your own risk for other
       # use cases.
       def disable_approval!
-        send(:remove_const, :DRAFT_PUNK_IS_SETUP) if const_defined? :DRAFT_PUNK_IS_SETUP
-        send(:remove_const, :DRAFT_NULLIFY_ATTRIBUTES) if const_defined? :DRAFT_NULLIFY_ATTRIBUTES
+        send(:remove_const, :DRAFT_PUNK_IS_SETUP)                   if const_defined? :DRAFT_PUNK_IS_SETUP
+        send(:remove_const, :DRAFT_NULLIFY_ATTRIBUTES)              if const_defined? :DRAFT_NULLIFY_ATTRIBUTES
+        send(:remove_const, :ALLOW_PREVIOUS_VERSIONS_TO_BE_CHANGED) if const_defined? :ALLOW_PREVIOUS_VERSIONS_TO_BE_CHANGED
         fresh_amoeba do
           disable
         end
@@ -88,6 +92,14 @@ module DraftPunk
       # @return (Boolean)
       def tracks_approved_version?
         column_names.include? 'approved_version_id'
+      end
+
+      # Whether this model is configured to store previously-approved versions of the model.
+      # This will be true if the model has an current_approved_version_id column
+      #
+      # @return (Boolean)
+      def tracks_approved_version_history?
+        column_names.include?('current_approved_version_id')
       end
 
     protected #################################################################
@@ -114,13 +126,13 @@ module DraftPunk
             false
           end
         end
-        self.const_set :DRAFT_VALID_ASSOCIATIONS, valid_assocations
+        self.const_set :DRAFT_VALID_ASSOCIATIONS, valid_assocations.freeze
         valid_assocations
       end
 
     private ###################################################################
 
-      def setup_amoeba_for(target_class, set_default_scope: false)
+      def setup_amoeba_for(target_class, options={})
         return if target_class.const_defined?(:DRAFT_PUNK_IS_SETUP)
         associations = target_class.draft_target_associations
         associations = target_class.set_valid_associations(associations)
@@ -129,9 +141,9 @@ module DraftPunk
           include_associations target_class.const_get(:DRAFT_VALID_ASSOCIATIONS) unless target_class.const_get(:DRAFT_VALID_ASSOCIATIONS).empty?
           customize target_class.set_approved_version_id_callback
         end
-        target_class.const_set :DRAFT_PUNK_IS_SETUP, true
+        target_class.const_set :DRAFT_PUNK_IS_SETUP, true.freeze
 
-        setup_associations_and_scopes_for target_class, set_default_scope: set_default_scope
+        setup_associations_and_scopes_for target_class, **options
         setup_draft_association_persistance_for_children_of target_class, associations
       end
 
@@ -157,10 +169,22 @@ module DraftPunk
         end
       end
 
-      def setup_associations_and_scopes_for(target_class, set_default_scope: false)
+      def setup_associations_and_scopes_for(target_class, set_default_scope: false, allow_previous_versions_to_be_changed: true)
         target_class.send       :include, InstanceInterrogators unless target_class.method_defined?(:has_draft?)
         target_class.send       :attr_accessor, :temporary_approved_object
         target_class.send       :before_create, :before_create_draft if target_class.method_defined?(:before_create_draft)
+
+        target_class.const_set :ALLOW_PREVIOUS_VERSIONS_TO_BE_CHANGED, allow_previous_versions_to_be_changed.freeze
+        if target_class.tracks_approved_version_history?
+          target_class.belongs_to    :current_approved_version, class_name: target_class.name, optional: true
+          target_class.has_many      :previous_versions, -> { order(id: :desc) }, class_name: target_class.name, foreign_key: :current_approved_version_id
+          target_class.before_update :prevent_previous_versions_from_saving
+          target_class.send          :include, PreviousVersionInstanceMethods
+        end
+
+        if set_default_scope
+          target_class.default_scope -> { approved }
+        end
 
         return if target_class.reflect_on_association(:approved_version) || !target_class.column_names.include?('approved_version_id')
         target_class.send       :include, ActiveRecordInstanceMethods
@@ -169,13 +193,9 @@ module DraftPunk
         target_class.scope      :approved, -> { where("#{target_class.quoted_table_name}.approved_version_id IS NULL") }
         target_class.has_one    :draft, -> { unscope(where: :approved) }, class_name: target_class.name, foreign_key: :approved_version_id
         target_class.scope      :draft, -> { unscoped.where("#{target_class.quoted_table_name}.approved_version_id IS NOT NULL") }
-        if set_default_scope
-          target_class.default_scope -> { approved }
-        end
       end
 
       def is_relevant_association_type?(activerecord_reflection)
-        # Note when implementing for Rails 4, macro is renamed to something else
         activerecord_reflection.macro.in? Amoeba::Config::DEFAULTS[:known_macros]
       end
 

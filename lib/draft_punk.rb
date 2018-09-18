@@ -25,7 +25,16 @@ module DraftPunk
       @message = message
     end
     def to_s
-    	"this model doesn't have an approved_version_id column, so you cannot access its draft or approved versions. Add a column approved_version_id (Integer) to enable this tracking."
+      "this model doesn't have an approved_version_id column, so you cannot access its draft or approved versions. Add a column approved_version_id (Integer) to enable this tracking."
+    end
+  end
+
+  class HistoricVersionCreationError < ArgumentError
+    def initialize(message=nil)
+      @message = message
+    end
+    def to_s
+      "could not create previously-approved version: #{@message}"
     end
   end
 

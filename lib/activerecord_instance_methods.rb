@@ -6,17 +6,6 @@ module DraftPunk
       # You can overwrite these methods in your model for custom behavior
       #############################
 
-      # Determines whether to edit a draft, or the original object. This only controls
-      # the object returned by editable version, and draft publishing. If changes to not
-      # require approval, publishing of the draft is short circuited and will do nothing.
-      #
-      # Overwrite in your model to implement logic for whether to use a draft.
-      #
-      # @return [Boolean]
-      def changes_require_approval?
-        true # By default, all changes require approval
-      end
-
       # Which attributes of this model are published from the draft to the approved object. Overwrite in model
       # if you don't want all attributes of the draft to be saved on the live object.
       #
@@ -34,6 +23,17 @@ module DraftPunk
       # @return [Array] names of approvable attributes
       def approvable_attributes
         self.attributes.keys - ["created_at"]
+      end
+
+      # Determines whether to edit a draft, or the original object. This only controls
+      # the object returned by editable version, and draft publishing. If changes to not
+      # require approval, publishing of the draft is short circuited and will do nothing.
+      #
+      # Overwrite in your model to implement logic for whether to use a draft.
+      #
+      # @return [Boolean]
+      def changes_require_approval?
+        true # By default, all changes require approval
       end
 
       # Evaluates after the draft is created.
@@ -58,9 +58,9 @@ module DraftPunk
       def publish_draft!
         @live_version  = get_approved_version
         @draft_version = editable_version
-        return unless changes_require_approval? && @draft_version.is_draft? # No-op. ie. the business is in a state that doesn't require approval.
-
+        return unless changes_require_approval? && @draft_version.is_draft? # No-op. ie. the live version is in a state that doesn't require approval.
         transaction do
+          create_historic_version_of_approved_object if tracks_approved_version_history?
           save_attribute_changes_and_belongs_to_assocations_from_draft
           update_has_many_and_has_one_associations_from_draft
           # We have to destroy the draft this since we moved all the draft's has_many associations to @live_version. If you call "editable_version" later, it'll build the draft.
@@ -86,6 +86,10 @@ module DraftPunk
         approved_version || self
       end
 
+      def tracks_approved_version_history?
+        self.class.tracks_approved_version_history?
+      end
+
     protected #################################################################
 
       def get_draft
@@ -109,6 +113,21 @@ module DraftPunk
         draft
       end
 
+      def create_historic_version_of_approved_object
+        begin
+          dupe = @live_version.amoeba_dup
+          dupe.assign_attributes(
+                     approved_version_id: nil,
+             current_approved_version_id: @live_version.id,
+                              created_at: @live_version.created_at,
+                              updated_at: @live_version.updated_at )
+          dupe.save!(validate: false)
+        rescue => message
+          raise HistoricVersionCreationError, message
+        end
+        true
+      end
+
       def save_attribute_changes_and_belongs_to_assocations_from_draft
         @draft_version.attributes.each do |attribute, value|
           next unless attribute.in? usable_approvable_attributes
@@ -120,8 +139,7 @@ module DraftPunk
 
       def update_has_many_and_has_one_associations_from_draft
         self.class.draft_target_associations.each do |assoc|
-          reflection = self.class.reflect_on_association(assoc)
-
+          reflection = self.class.reflect_on_association(assoc) || next
           reflection_is_has_many(reflection) ? @live_version.send(assoc).destroy_all : @live_version.send(assoc).try(:destroy)
 
           attribute_updates = {}
@@ -129,13 +147,17 @@ module DraftPunk
           attribute_updates['updated_at']           = Time.now if reflection.klass.column_names.include?('updated_at')
           attribute_updates['approved_version_id']  = nil if reflection.klass.tracks_approved_version?
 
-          reflection_is_has_many(reflection) ? @draft_version.send(assoc).update_all(attribute_updates) : @draft_version.send(assoc).update_columns(attribute_updates)
+          if reflection_is_has_many(reflection)
+            @draft_version.send(assoc).update_all attribute_updates
+          elsif @draft_version.send(assoc).present?
+            @draft_version.send(assoc).update_columns attribute_updates
+          end
         end
       end
 
       def usable_approvable_attributes
         nullified_attributes = self.class.const_defined?(:DRAFT_NULLIFY_ATTRIBUTES) ? self.class.const_get(:DRAFT_NULLIFY_ATTRIBUTES) : []
-        approvable_attributes.map(&:to_s) - nullified_attributes.map(&:to_s) - ['approved_version_id', 'id']
+        approvable_attributes.map(&:to_s) - nullified_attributes.map(&:to_s) - ['approved_version_id', 'id', 'current_approved_version_id']
       end
 
       def current_approvable_attributes
@@ -150,15 +172,12 @@ module DraftPunk
       end
 
       def association_is_has_many(name)
-        # Note when implementing for Rails 4, macro is renamed to something else
         self.class.reflect_on_association(name.to_sym).macro == :has_many
       end
 
       def reflection_is_has_many(reflection)
-        # Note when implementing for Rails 4, macro is renamed to something else
         reflection.macro == :has_many
       end
-
     end
 
     module InstanceInterrogators
@@ -173,7 +192,14 @@ module DraftPunk
         raise DraftPunk::ApprovedVersionIdError unless respond_to?(:approved_version_id)
         draft.present?
       end
-    end
 
+      # @return [Boolean] whether the current ActiveRecord object is a previously-approved
+      #    version of another instance of this class
+      def is_previous_version?
+        tracks_approved_version_history? &&
+        !is_draft? &&
+        current_approved_version_id.present?
+      end
+    end
   end
 end

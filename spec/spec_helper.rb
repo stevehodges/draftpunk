@@ -56,7 +56,7 @@ def setup_draft_with_changes
   @draft_room.custom_flooring_style.update_column(:name, 'shag')
 
   closet = @draft_room.closets.where(style: 'wall').first
-  closet.style='hidden'
+  closet.style = 'hidden'
   closet.save!
 
   @draft_room.closets << Closet.create(style: 'coat')
