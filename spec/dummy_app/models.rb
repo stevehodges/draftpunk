@@ -2,7 +2,7 @@ class House < ActiveRecord::Base
   has_many :rooms
   has_many :permits
 
-	NULLIFY_ATTRIBUTES = %i(address)
+  NULLIFY_ATTRIBUTES = %i(address)
   CREATES_NESTED_DRAFTS_FOR = %i(rooms)
 end
 

@@ -86,7 +86,7 @@ describe DraftPunk::Model::ActiveRecordClassMethods do
           expect(@draft.permits.count).to be_zero 
         end
 
-        it 'nullifies all attributes specified in requires_approval nullify_attributes argument' do
+        it 'nullifies all attributes specified in requires_approval nullify argument' do
           expect(@house.address).to be_present
           expect(@draft.address).to be_nil
         end

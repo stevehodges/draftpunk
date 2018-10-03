@@ -1,15 +1,9 @@
 require 'draft_punk/version'
 require 'amoeba'
-require 'activerecord_class_methods'
-require 'helper_methods'
+require 'activerecord/macros'
+require 'helpers/helper_methods'
 
 module DraftPunk
-  module Model
-    def self.included(base)
-      base.send :extend, ActiveRecordClassMethods
-    end
-  end
-
   class ConfigurationError < RuntimeError
     def initialize(message)
     	@caller = caller[0]
@@ -46,9 +40,8 @@ module DraftPunk
       "the draft failed to be created: #{@message}"
     end
   end
-
 end
 
 ActiveSupport.on_load(:active_record) do
-  include DraftPunk::Model
+  extend DraftPunk::Model::Macros
 end
