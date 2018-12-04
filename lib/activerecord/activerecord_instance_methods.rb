@@ -59,13 +59,18 @@ module DraftPunk
         @live_version  = get_approved_version
         @draft_version = editable_version
         return unless changes_require_approval? && @draft_version.is_draft? # No-op. ie. the live version is in a state that doesn't require approval.
+        @live_version.instance_variable_set :@publishing_draft, true
         transaction do
-          create_historic_version_of_approved_object if tracks_approved_version_history?
-          save_attribute_changes_and_belongs_to_assocations_from_draft
-          update_has_many_and_has_one_associations_from_draft
-          # We have to destroy the draft this since we moved all the draft's has_many associations to @live_version. If you call "editable_version" later, it'll build the draft.
-          # We destroy_all in case extra drafts are in the database. Extra drafts can potentially be created due to race conditions in the application.
-          self.class.unscoped.where(approved_version_id: @live_version.id).destroy_all
+          begin
+            create_historic_version_of_approved_object if tracks_approved_version_history?
+            save_attribute_changes_and_belongs_to_assocations_from_draft
+            update_has_many_and_has_one_associations_from_draft
+            # We have to destroy the draft this since we moved all the draft's has_many associations to @live_version. If you call "editable_version" later, it'll build the draft.
+            # We destroy_all in case extra drafts are in the database. Extra drafts can potentially be created due to race conditions in the application.
+            self.class.unscoped.where(approved_version_id: @live_version.id).destroy_all
+          ensure
+            @live_version.remove_instance_variable :@publishing_draft
+          end
         end
         @live_version = self.class.find(@live_version.id)
       end
@@ -88,6 +93,10 @@ module DraftPunk
 
       def tracks_approved_version_history?
         self.class.tracks_approved_version_history?
+      end
+
+      def publishing_draft?
+        !!@publishing_draft
       end
 
     protected #################################################################
@@ -190,7 +199,7 @@ module DraftPunk
       # @return [Boolean] whether the current ActiveRecord object has a draft version
       def has_draft?
         raise DraftPunk::ApprovedVersionIdError unless respond_to?(:approved_version_id)
-        draft.present?
+        draft.present? && !publishing_draft?
       end
 
       # @return [Boolean] whether the current ActiveRecord object is a previously-approved
