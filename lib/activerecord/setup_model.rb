@@ -47,6 +47,7 @@ module DraftPunk
 			target_model.extend Model::ActiveRecordClassMethods
       target_associations = target_model.draft_target_associations
       target_associations = set_valid_associations(target_model, target_associations)
+      Rails.logger.info "setup_amoeba for target_associations: #{target_associations.inspect}"
       target_model.amoeba do
         enable 
         include_associations target_model.const_get(:DRAFT_VALID_ASSOCIATIONS) unless target_model.const_get(:DRAFT_VALID_ASSOCIATIONS).empty?
@@ -91,6 +92,7 @@ module DraftPunk
         reflection.presence || (raise DraftPunk::ConfigurationError, "#{name} includes invalid association (#{assoc})")
       end
       target_reflections.select{|r| DraftPunk.is_relevant_association_type?(r) }.each do |assoc|
+        Rails.logger.debug "Setting up Draftpunk for association: #{assoc.klass}"
         setup_amoeba_for assoc.klass
       end
     end
@@ -98,7 +100,9 @@ module DraftPunk
     # Rejects the associations if the table hasn't been defined yet. This happens when
     # running migrations which add that association's table.
     def set_valid_associations(target_model, associations)
+      Rails.logger.debug "Attempting to set valid associations for Draftpunk"
       return target_model.const_get(:DRAFT_VALID_ASSOCIATIONS) if target_model.const_defined?(:DRAFT_VALID_ASSOCIATIONS)
+      Rails.logger.debug "Actually setting valid associations for Draftpunk"
       associations = associations.map(&:to_sym)
       valid_assocations = associations.select do |assoc|
         reflection = target_model.reflect_on_association(assoc)
@@ -109,6 +113,8 @@ module DraftPunk
           false
         end
       end
+      Rails.logger.debug "Set valid associations for Draftpunk: #{valid_assocations.inspect}"
+
       target_model.const_set :DRAFT_VALID_ASSOCIATIONS, valid_assocations.freeze
       valid_assocations
     end
