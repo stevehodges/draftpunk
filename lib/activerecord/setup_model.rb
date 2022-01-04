@@ -46,8 +46,9 @@ module DraftPunk
       return if target_model.const_defined?(:DRAFT_PUNK_IS_SETUP)
 			target_model.extend Model::ActiveRecordClassMethods
       target_associations = target_model.draft_target_associations
+      Rails.logger.info "setup_amoeba with #{target_model} draft_target_associations: #{target_associations.inspect}"
       target_associations = set_valid_associations(target_model, target_associations)
-      Rails.logger.info "setup_amoeba for target_associations: #{target_associations.inspect}"
+      Rails.logger.info "setup_amoeba with #{target_model} for target_associations: #{target_associations.inspect}"
       target_model.amoeba do
         enable 
         include_associations target_model.const_get(:DRAFT_VALID_ASSOCIATIONS) unless target_model.const_get(:DRAFT_VALID_ASSOCIATIONS).empty?
@@ -108,8 +109,10 @@ module DraftPunk
         reflection = target_model.reflect_on_association(assoc)
         if reflection
           table_name = reflection.klass.table_name
+          Rails.logger.debug "Model table exists: #{table_name} #{model_table_exists?(table_name)}"
           model_table_exists?(table_name)
         else
+          Rails.logger.debug "Unable to reflect on association: #{assoc} | #{target_model.reflect_on_association(assoc)}"
           false
         end
       end
