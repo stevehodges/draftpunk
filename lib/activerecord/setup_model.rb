@@ -103,7 +103,7 @@ module DraftPunk
     def set_valid_associations(target_model, associations)
       Rails.logger.debug "Attempting to set valid associations for Draftpunk"
       return target_model.const_get(:DRAFT_VALID_ASSOCIATIONS) if target_model.const_defined?(:DRAFT_VALID_ASSOCIATIONS)
-      Rails.logger.debug "Actually setting valid associations for Draftpunk"
+      Rails.logger.debug "Actually setting valid associations for Draftpunk on target model: #{target_model} | #{target_model.class.name}"
       associations = associations.map(&:to_sym)
       valid_assocations = associations.select do |assoc|
         reflection = target_model.reflect_on_association(assoc)
@@ -112,7 +112,7 @@ module DraftPunk
           Rails.logger.debug "Model table exists: #{table_name} #{model_table_exists?(table_name)}"
           model_table_exists?(table_name)
         else
-          Rails.logger.debug "Unable to reflect on association: #{assoc} | #{target_model.reflect_on_association(assoc)}"
+          Rails.logger.debug "Unable to reflect on association: #{target_model} | #{target_model.class.name} | #{assoc} | #{target_model.reflect_on_association(assoc)}"
           false
         end
       end
