@@ -24,11 +24,7 @@ module DraftPunk
 
       raise DraftPunk::ConfigurationError, "Cannot call requires_approval multiple times for #{@top_level_model.name}" if @top_level_model.const_defined?(:DRAFT_PUNK_IS_SETUP)
       @top_level_model.const_set :DRAFT_NULLIFY_ATTRIBUTES, Array(@nullify).flatten.freeze
-      @top_level_model.amoeba do
-        nullify @nullify
-        # Note that the amoeba associations and customize options are being set in setup_associations_and_scopes_for
-      end
-      setup_amoeba_for @top_level_model, set_default_scope: @set_default_scope, allow_previous_versions_to_be_changed: @allow_previous_versions_to_be_changed
+      setup_amoeba_for @top_level_model, nullify: @nullify, set_default_scope: @set_default_scope, allow_previous_versions_to_be_changed: @allow_previous_versions_to_be_changed
       true
 		end
 
@@ -50,12 +46,14 @@ module DraftPunk
       target_associations = set_valid_associations(target_model, target_associations)
       Rails.logger.info "setup_amoeba with #{target_model} for target_associations: #{target_associations.inspect}"
       target_model.amoeba do
-        enable 
+        enable
+        nullify options[:nullify]
         include_associations target_model.const_get(:DRAFT_VALID_ASSOCIATIONS) unless target_model.const_get(:DRAFT_VALID_ASSOCIATIONS).empty?
         customize target_model.set_approved_version_id_callback
       end
       target_model.const_set :DRAFT_PUNK_IS_SETUP, true.freeze
 
+      options.delete(:nullify) # done with this key and next method doesn't expect it
       setup_associations_and_scopes_for target_model, **options
       setup_draft_association_persistance_for_children_of target_model, target_associations
     end
