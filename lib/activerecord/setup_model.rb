@@ -42,9 +42,7 @@ module DraftPunk
       return if target_model.const_defined?(:DRAFT_PUNK_IS_SETUP)
 			target_model.extend Model::ActiveRecordClassMethods
       target_associations = target_model.draft_target_associations
-      Rails.logger.info "setup_amoeba with #{target_model} draft_target_associations: #{target_associations.inspect}"
       target_associations = set_valid_associations(target_model, target_associations)
-      Rails.logger.info "setup_amoeba with #{target_model} for target_associations: #{target_associations.inspect}"
       target_model.amoeba do
         enable
         nullify options[:nullify]
@@ -91,7 +89,6 @@ module DraftPunk
         reflection.presence || (raise DraftPunk::ConfigurationError, "#{name} includes invalid association (#{assoc})")
       end
       target_reflections.select{|r| DraftPunk.is_relevant_association_type?(r) }.each do |assoc|
-        Rails.logger.debug "Setting up Draftpunk for association: #{assoc.klass}"
         setup_amoeba_for assoc.klass
       end
     end
@@ -99,22 +96,18 @@ module DraftPunk
     # Rejects the associations if the table hasn't been defined yet. This happens when
     # running migrations which add that association's table.
     def set_valid_associations(target_model, associations)
-      Rails.logger.debug "Attempting to set valid associations for Draftpunk"
       return target_model.const_get(:DRAFT_VALID_ASSOCIATIONS) if target_model.const_defined?(:DRAFT_VALID_ASSOCIATIONS)
-      Rails.logger.debug "Actually setting valid associations for Draftpunk on target model: #{target_model} | #{target_model.class.name}"
       associations = associations.map(&:to_sym)
       valid_assocations = associations.select do |assoc|
         reflection = target_model.reflect_on_association(assoc)
         if reflection
           table_name = reflection.klass.table_name
-          Rails.logger.debug "Model table exists: #{table_name} #{model_table_exists?(table_name)}"
           model_table_exists?(table_name)
         else
-          Rails.logger.debug "Unable to reflect on association: #{target_model} | #{target_model.class.name} | #{assoc} | #{target_model.reflect_on_association(assoc)}"
+          Rails.logger.error "Unable to reflect on association: #{target_model} | #{target_model.class.name} | #{assoc} | #{target_model.reflect_on_association(assoc)}"
           false
         end
       end
-      Rails.logger.debug "Set valid associations for Draftpunk: #{valid_assocations.inspect}"
 
       target_model.const_set :DRAFT_VALID_ASSOCIATIONS, valid_assocations.freeze
       valid_assocations
