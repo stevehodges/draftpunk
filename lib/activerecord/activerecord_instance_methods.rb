@@ -138,6 +138,9 @@ module DraftPunk
       end
 
       def save_attribute_changes_and_belongs_to_assocations_from_draft
+        # can do special handling before we copy the draft attributes to the live version
+        @live_version.before_copy_draft_to_live_when_publishing if @live_version.respond_to?(:before_copy_draft_to_live_when_publishing)
+
         @draft_version.attributes.each do |attribute, value|
           next unless attribute.in? usable_approvable_attributes
           @live_version.send("#{attribute}=", value)
