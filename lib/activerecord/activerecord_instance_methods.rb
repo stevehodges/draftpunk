@@ -59,6 +59,10 @@ module DraftPunk
         @live_version  = get_approved_version
         @draft_version = editable_version
         return unless changes_require_approval? && @draft_version.is_draft? # No-op. ie. the live version is in a state that doesn't require approval.
+
+        # can do special handling right before publishing a draft starts
+        @live_version.before_publishing_draft_starts if @live_version.respond_to?(:before_publishing_draft_starts)
+
         @live_version.instance_variable_set :@publishing_draft, true
         transaction do
           begin
@@ -138,9 +142,6 @@ module DraftPunk
       end
 
       def save_attribute_changes_and_belongs_to_assocations_from_draft
-        # can do special handling before we copy the draft attributes to the live version
-        @live_version.before_copy_draft_to_live_when_publishing if @live_version.respond_to?(:before_copy_draft_to_live_when_publishing)
-
         @draft_version.attributes.each do |attribute, value|
           next unless attribute.in? usable_approvable_attributes
           @live_version.send("#{attribute}=", value)
