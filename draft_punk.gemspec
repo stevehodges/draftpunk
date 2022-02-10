@@ -33,7 +33,7 @@ EOF
 
   spec.add_runtime_dependency     "amoeba",    "~> 3.1"
   spec.add_runtime_dependency     "differ",    "< 0.2"
-  spec.add_runtime_dependency     'rails',     ">= 5.0", "< 5.3"
+  spec.add_runtime_dependency     'rails',     ">= 5.0", "< 6.1"
 
   spec.add_development_dependency "bundler",   "~> 1.9"
   spec.add_development_dependency "rake",      "~> 10.0"
